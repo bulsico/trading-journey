@@ -290,8 +290,7 @@
     "strip": "Win / loss strip",
     "no_card": "Not enough closed trades for a share card yet.",
     "stats_caption": "Dash = not enough data in that window (fewer than 3 closed trades, or history starts later).",
-    "positions_more": "{n} more positions are listed in the chat report.",
-    "download_hint": "Some viewers block downloads from a Page; if nothing saves, ask the bot for the PNG."
+    "positions_more": "{n} more positions are listed in the chat report."
   },
   "profile": {
     "combined": "Combined",

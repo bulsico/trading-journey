@@ -290,8 +290,7 @@
     "strip": "胜负条",
     "no_card": "平仓笔数还不够，暂时生成不了分享卡片。",
     "stats_caption": "横线 = 该时段数据不足（少于 3 笔平仓，或历史起点更晚）。",
-    "positions_more": "另有 {n} 个持仓见聊天报告。",
-    "download_hint": "有些查看器会拦截页面里的下载；如果没有保存成功，直接向机器人要 PNG。"
+    "positions_more": "另有 {n} 个持仓见聊天报告。"
   },
   "profile": {
     "combined": "合并",

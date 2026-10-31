@@ -22,8 +22,8 @@ rasterizer for the PNG share card (see step 5).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.2 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.2 2>/dev/null; git checkout -q v0.2.2
+[ -d $REPO/.git ] || git clone --branch v0.2.3 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.3 2>/dev/null; git checkout -q v0.2.3
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```
@@ -223,8 +223,8 @@ share card is the default period in $ (the % and other-period cards, and the
 per-account cards, stay available via `lsl card`; account rows say to ask you),
 asset groups are the top 5 best / 5 worst / 8 multi-venue, account sparklines
 use 24 points, and Robinhood positions show the first 12 rows with a "N more"
-line. Some viewers block downloads from a Page; the card section says so, so
-when the user asks, send `share-card.png` from `$OUT` in chat.
+line. Some viewers block downloads from a Page; the card note says so, so when
+the user asks, send `share-card.png` from `$OUT` in chat.
 
 ## 7. Chat report
 

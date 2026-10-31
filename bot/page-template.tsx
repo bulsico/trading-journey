@@ -180,7 +180,6 @@ export default function TradingJourney() {
                 <Button variant="primary" label={U.download_png} onClick={() => savePng(svg, fname, () => setBlocked(true))} />
                 <Button label={U.download_svg} onClick={() => { if (!save(svgUrl(svg), fname + ".svg")) setBlocked(true); }} />
               </Grid>
-              <Text>{U.download_hint}</Text>
             </>
           ) : (
             <Text>{AL.no_card}</Text>
