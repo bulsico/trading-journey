@@ -39,4 +39,4 @@ Layout:
 | `lsl/fifo.py`, `lsl/compute.py`, `lsl/persona.py` | P&L, stats, persona |
 | `lsl/assets.py`, `lsl/data/` | cross-venue grouping, HL spot whitelist |
 | `lsl/page.py`, `lsl/labels/` | page.json and en/zh labels |
-| `tests/` | synthetic fixtures; `test_sources.py` covers source combinations, scopes, card, profile; `test_accounts.py` the By-account breakdown and per-account cards; `test_trend.py` SMA math, tagging, candle cache, determinism |
+| `tests/` | synthetic fixtures; `test_sources.py` covers source combinations, scopes, card, profile; `test_accounts.py` the By-account breakdown and per-account cards; `test_trend.py` SMA math, tagging, candle cache, determinism; `test_page_template.py` keeps download code out of the sandboxed Page and checks template label keys |

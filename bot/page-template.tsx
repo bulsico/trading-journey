@@ -1,4 +1,4 @@
-import { Page, Section, Grid, Metrics, Table, Callout, Rows, Text, Bars, Columns, ColumnSeries, LineChart, Heatmap, Segmented, BulletList, Properties, Image, Button, Select, TableOfContents, useState } from "grok/canvas";
+import { Page, Section, Grid, Metrics, Table, Callout, Rows, Text, Bars, Columns, ColumnSeries, LineChart, Heatmap, Segmented, BulletList, Properties, Image, Select, TableOfContents, useState } from "grok/canvas";
 
 // D = trading-journey `bin/lsl page --scope <scope> --lang <lang>` output (out/<scope>/page.json), pasted verbatim.
 // The page only selects and slices; it does no arithmetic on figures. Sections hide themselves via D.has.
@@ -19,44 +19,9 @@ const groupRow = (key: string) => (G.rows as any[]).find((r) => r.group === key)
 const venueSymbol = (v: any) => (v.multiplier_display ? `${v.raw_symbol} (${v.multiplier_display})` : v.raw_symbol);
 const CARD = D.card as any;
 const VARIANTS = CARD.variants as Record<string, string>;
+// The card is shown as an <Image> with an SVG data URI. The Page frame is sandboxed and the kit has no
+// download/blob/clipboard API, so there are no download buttons: the bot attaches the PNG in chat.
 const svgUrl = (svg: string) => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-
-function save(href: string, name: string): boolean {
-  try {
-    const a = document.createElement("a");
-    a.href = href;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function savePng(svg: string, name: string, onFail: () => void) {
-  try {
-    const img = new window.Image();
-    img.onload = () => {
-      try {
-        const c = document.createElement("canvas");
-        c.width = CARD.width * 2;
-        c.height = CARD.height * 2;
-        const g = c.getContext("2d")!;
-        g.scale(2, 2);
-        g.drawImage(img, 0, 0, CARD.width, CARD.height);
-        if (!save(c.toDataURL("image/png"), name + ".png")) onFail();
-      } catch {
-        onFail();
-      }
-    };
-    img.onerror = onFail;
-    img.src = svgUrl(svg);
-  } catch {
-    onFail();
-  }
-}
 
 const ACC = D.accounts as any;
 const TR = D.trend as any;
@@ -65,10 +30,8 @@ const cardFor = (key: string) => (key === "all" ? CARD : CARD_ACCTS.find((c) => 
 // The account's card in the chosen period/money mode, else its first available period.
 const acctSvg = (c: any, period: string, mode: string) =>
   c ? c.variants[`${period}.${mode}`] || (c.default.period ? c.variants[`${c.default.period}.${mode}`] : undefined) : undefined;
-const acctFile = (c: any, period: string, mode: string) =>
-  `${c.filename}-${c.variants[`${period}.${mode}`] ? period : c.default.period}${mode === "pct" ? "-pct" : ""}`;
 
-function accountSection(r: any, period: string, mode: string, onFail: () => void) {
+function accountSection(r: any, period: string, mode: string) {
   const L = ACC.labels as Record<string, string>;
   const c = CARD_ACCTS.find((x) => x.key === r.key);
   const svg = acctSvg(c, period, mode);
@@ -86,14 +49,7 @@ function accountSection(r: any, period: string, mode: string, onFail: () => void
       ) : null}
       <Text>{`${r.strip_label}: ${r.strip_display}`}</Text>
       <Properties items={(r.facts as any[]).map((f) => ({ label: f.label, value: f.value }))} />
-      {svg ? (
-        <Grid columns={2} plain>
-          <Button variant="primary" label={L.download_png} onClick={() => savePng(svg, acctFile(c, period, mode), onFail)} />
-          <Button label={L.download_svg} onClick={() => { if (!save(svgUrl(svg), acctFile(c, period, mode) + ".svg")) onFail(); }} />
-        </Grid>
-      ) : (
-        <Text>{CARD.compact ? L.card_on_request : L.no_card}</Text>
-      )}
+      {svg ? <Text>{L.card_in_picker}</Text> : <Text>{CARD.compact ? L.card_on_request : L.no_card}</Text>}
     </Section>
   );
 }
@@ -142,12 +98,10 @@ export default function TradingJourney() {
   const periods = CA.periods as { id: string; label: string }[];
   const [period, setPeriod] = useState<string>(CARD.default.period);
   const [cmode, setCmode] = useState<string>(CARD.default.mode);
-  const [blocked, setBlocked] = useState<boolean>(false);
   const cper = periods.some((p) => p.id === period) ? period : CA.default.period;
   const hasPct = Object.keys(CA.variants).some((k) => k.endsWith(".pct"));
   const cm = hasPct ? cmode : "usd";
   const svg = cper ? (CA.variants as Record<string, string>)[`${cper}.${cm}`] : undefined;
-  const fname = `${CA.filename}-${cper}${cm === "pct" ? "-pct" : ""}`;
   const cardLabel = cacct === "all" ? D.scope.label : CA.label;
   const AL = ACC.labels as Record<string, string>;
   const picker = [{ value: "all", label: AL.all_accounts }, ...CARD_ACCTS.map((c) => ({ value: c.key as string, label: c.label as string }))];
@@ -176,16 +130,12 @@ export default function TradingJourney() {
           {hasPct ? <Segmented options={money} value={cm} onChange={setCmode} /> : null}
           {svg ? (
             <>
-              <Image src={svgUrl(svg)} alt={`${U.share_card} · ${cardLabel}`} fit="contain" />
-              <Grid columns={2} plain>
-                <Button variant="primary" label={U.download_png} onClick={() => savePng(svg, fname, () => setBlocked(true))} />
-                <Button label={U.download_svg} onClick={() => { if (!save(svgUrl(svg), fname + ".svg")) setBlocked(true); }} />
-              </Grid>
+              <Image src={svgUrl(svg)} alt={`${U.share_card} · ${cardLabel}`} fit="contain" width="100%" />
+              <Text>{U.card_save}</Text>
             </>
           ) : (
             <Text>{AL.no_card}</Text>
           )}
-          {blocked ? <Callout tone="warning">{U.download_blocked}</Callout> : null}
         </Section>
       ) : null}
 
@@ -256,7 +206,7 @@ export default function TradingJourney() {
           ))}
           {ACC.none ? <Text>{ACC.none}</Text> : null}
           {ACC.shared_display ? <Text>{ACC.shared_display}</Text> : null}
-          {(ACC.rows as any[]).map((r) => accountSection(r, cper || CARD.default.period, cm, () => setBlocked(true)))}
+          {(ACC.rows as any[]).map((r) => accountSection(r, cper || CARD.default.period, cm))}
         </Section>
       ) : null}
 

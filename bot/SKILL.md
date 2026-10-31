@@ -15,15 +15,16 @@ Read-only: only Robinhood `get_*` tools are ever called (the planner asserts
 this). Never call anything that places, cancels or modifies orders, transfers or
 settings.
 
-Requirements: `python3` 3.8+ (stdlib only, no installs), `git`. Optional: an SVG
-rasterizer for the PNG share card (see step 5).
+Requirements: `python3` 3.8+ (stdlib only for the engine), `git`, and an SVG
+rasterizer for the PNG share card, which is the user's only download path (step 5
+installs one when missing).
 
 ## 0. Setup (every run)
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.5 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.5 2>/dev/null; git checkout -q v0.2.5
+[ -d $REPO/.git ] || git clone --branch v0.2.6 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.6 2>/dev/null; git checkout -q v0.2.6
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```
@@ -192,12 +193,33 @@ python3 bin/lsl card --data-dir $DATA --scope $SCOPE --lang $LANG_ [--period all
 
 Writes `$OUT/share-card.svg` (1200x675, byte-identical) and, when a rasterizer
 is installed (`rsvg-convert`, `cairosvg` or `inkscape`), `$OUT/share-card.png`.
-Attach the PNG in chat. If the result says `"png": null` with an install hint,
-attach the SVG instead and tell the user once how to get PNGs
-(`sudo apt-get install librsvg2-bin`, `brew install librsvg` or
-`pip install cairosvg`). `--percent-only` hides dollar amounts (return on volume
-and win rate only); offer it when the user wants to share without amounts. If a period has too little data the result is an error listing
-`available_periods`; pick one of those. The card never shows an account number.
+
+The chat attachment is the only real download path. The Page runs in a sandboxed
+frame with no download, blob or clipboard support, so it shows the card as an
+image with no download buttons and its note says the PNG is in the chat. So:
+
+- Always attach the combined `share-card.png` to the chat right after the
+  report, without being asked.
+- If the result says `"png": null` (no rasterizer), install one first, then
+  rerun the same `lsl card ... --png` command:
+  ```bash
+  command -v rsvg-convert || sudo apt-get install -y librsvg2-bin \
+    || { python3 -m venv ~/.lsl-venv && ~/.lsl-venv/bin/pip install -q cairosvg \
+         && export PATH=~/.lsl-venv/bin:$PATH; }      # macOS: brew install librsvg
+  ```
+  `lsl card` finds `rsvg-convert`, `cairosvg` (CLI on `PATH`) or `inkscape`.
+  Attach `share-card.svg` only as a last resort, when no rasterizer can be
+  installed, and say once why it is an SVG.
+
+`--percent-only` hides dollar amounts (return on volume and win rate only);
+offer it when the user wants to share without amounts. If a period has too
+little data the result is an error listing `available_periods`; pick one of
+those. The card never shows an account number.
+
+Any other card (another period, the % version, or one account) is attached as a
+PNG when the user asks for it, made with `lsl card ... --png` (`--period`,
+`--percent-only`, `--per-account`). The Page's period and $/% toggles only
+preview cards; they cannot save them.
 
 With several accounts the combined card says "N accounts" on its scope line.
 After the report, attach the combined card and offer per-account cards ("want a
@@ -210,8 +232,8 @@ python3 bin/lsl card --data-dir $DATA --scope all --lang $LANG_ --per-account [-
 This also writes `$OUT/cards/<account-slug>.svg` (+ `.png`) for every account,
 in By-account order; the result's `cards[]` lists each one (`label`, `svg`,
 `png`), or `skipped` with that account's `available_periods` when it has too
-little data for the period. Attach only the card(s) the user asked for. The
-Page has the same cards behind an account picker and on each By-account row.
+little data for the period. Attach only the PNG(s) the user asked for. The
+Page previews the same cards behind its account picker (view only).
 
 ## 6. Build the Page
 
@@ -246,12 +268,13 @@ The template adapts to the sources by itself (`D.has`): sections for a missing
 source are hidden, Robinhood-only pages show no funding or HL sections, and
 with two or more accounts a "By account" section shows the account table,
 cross-account callouts and one expandable detail per account (equity
-sparkline, profile stats, card download); it is hidden for a single account.
+sparkline, profile stats, a pointer to its card); it is hidden for a single account.
 With candles, a "Trend discipline" section shows tag coverage, callouts, the
 with / counter / neutral table, regime and direction tables, and the split by
 venue and account.
 It opens with the TL;DR, the share card (account picker when there are several
-accounts, period and $/% toggles, Download PNG / Download SVG), and the trader
+accounts, period and $/% toggles, the card as an image plus a line saying the
+PNG is attached in the chat; no download buttons), and the trader
 profile ($/% toggle, venue selector, 7D/30D/90D/All table). The Page is
 private to the user, so real tickers and amounts are fine there.
 
@@ -260,8 +283,8 @@ share card is the default period in $ (the % and other-period cards, and the
 per-account cards, stay available via `lsl card`; account rows say to ask you),
 asset groups are the top 5 best / 5 worst / 8 multi-venue, account sparklines
 use 24 points, and Robinhood positions show the first 12 rows with a "N more"
-line. Some viewers block downloads from a Page; the card note says so, so when
-the user asks, send `share-card.png` from `$OUT` in chat.
+line. The Page cannot save files; every card download is a PNG you attach in chat
+(step 5).
 
 ## 7. Chat report
 
@@ -274,8 +297,9 @@ follows when there is more than one account. Then follow the template for the la
 - Chinese: `bot/report-template.zh.md`
 - English: `bot/report-template.en.md`
 
-Read `context/market-context.md` as background first. Attach the share card
-PNG (or SVG). Keep it under ~1500 words (中文 1500 字).
+Read `context/market-context.md` as background first. After the report, always
+attach the combined share card PNG (step 5; SVG only as a last resort). Keep it
+under ~1500 words (中文 1500 字).
 
 Privacy: the report, card and Page are for the user only. Never post them, and
 never put account numbers, addresses, or data files anywhere shared or committed.

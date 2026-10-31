@@ -307,8 +307,10 @@ def to_png(svg_path, png_path):
     return tool
 
 
-INSTALL_HINT = ("no SVG rasterizer found; install one for PNG output: `sudo apt-get install librsvg2-bin` "
-                "(rsvg-convert), `brew install librsvg`, or `pip install cairosvg`")
+INSTALL_HINT = ("no SVG rasterizer found; the PNG attached in chat is the user's only download, so install one "
+                "and rerun with --png: `sudo apt-get install -y librsvg2-bin` (rsvg-convert), `brew install librsvg`, "
+                "or `python3 -m venv ~/.lsl-venv && ~/.lsl-venv/bin/pip install cairosvg` with ~/.lsl-venv/bin on PATH; "
+                "attach the SVG only as a last resort")
 
 
 def _write(path, s, png, res):

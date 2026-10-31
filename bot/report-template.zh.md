@@ -13,7 +13,7 @@ the bot never computes a number itself.
 - TL;DR：`page.json` → `tldr`（3-6 行，原样照抄，不改数字；只有趋势纪律值得一提时才会出现「趋势：」开头的一行）
 - 分析范围：`summary.scope.label`（例如「全部账户」「Robinhood Roth IRA …1234」「0xabcd…1234」）；`summary.sources`（rh / hl）；Hyperliquid 地址只用 `summary.hl_addresses[].label`（短地址或用户起的名字）
 - 交易者档案：`page.json` → `profile.by[profile.default]`：`facts[]`（最长连胜、持仓时长、交易风格、盈亏层级、仓位体量、多空偏好，`value` 已含 emoji）、`strip_display`（最近 50 笔 🟩/🟥）、`periods`（7D/30D/90D/ALL 的净盈亏、最大回撤、胜率、Sharpe、Sortino、成交额、笔数；`-` 表示数据不足）。原始数值在 `summary.profile.{all,rh,hl}`
-- 分享卡：`bin/lsl card --scope <scope> --lang zh --png` 生成的 `share-card.png`（或 `.svg`），附在报告里。分账户卡片（`--per-account`）只在用户要的时候生成
+- 分享卡：报告发完后，一定把 `bin/lsl card --scope <scope> --lang zh --png` 生成的 `share-card.png` 附在聊天里，这是用户唯一的下载方式（页面只展示卡片，不能下载）。没有转换工具就先安装再重跑（见 SKILL.md 第 5 步）；实在装不上才附 `.svg`。其他周期、百分比版和分账户卡片（`--per-account`）在用户要的时候附 PNG
 - 分账户（仅当 `summary.accounts.count` > 1）：`page.json` → `accounts.rows[]`，按原顺序（`label`、`net_display`、`share_display`、`rov_display`、`volume_display`、`trades`、`win_rate_display`、`max_dd_display`、`best_display`、`worst_display`、`style_display`、`period_display`），`accounts.total`，`accounts.insights[]`（`lead`、`body`），`accounts.none`，`accounts.shared_display`。原始数值和规则见 `summary.accounts`（`rows`、`totals`、`reconciliation`、`insights`）
 
 - 基本档案：`overall.period.{from,to,days}`、`overall.fills`、`overall.unique_assets`、`overall.liquidations`
