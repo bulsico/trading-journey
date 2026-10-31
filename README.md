@@ -20,7 +20,7 @@ combination (at least one):
 ## Use it from Grok Bot
 
 Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo at tag
-`v0.2.1`, run the self-test, pick the language, collect sources (Hyperliquid
+`v0.2.2`, run the self-test, pick the language, collect sources (Hyperliquid
 addresses; Robinhood via the official connector, whose namespace it discovers),
 sync, compute one combined report (with a per-account breakdown when there are
 several accounts; single-account reports on request), render the share card
@@ -45,7 +45,7 @@ python3 bin/lsl rh refresh --data-dir DATA                 # start an incrementa
 python3 bin/lsl sources   --data-dir DATA                  # which sources have data, available scopes
 
 python3 bin/lsl compute --data-dir DATA [--scope SCOPE] [--lang en|zh]   # -> DATA/out/<scope-slug>/
-python3 bin/lsl page    --data-dir DATA [--scope SCOPE] [--lang en|zh]   # rebuild page.json only
+python3 bin/lsl page    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--compact]   # rebuild page.json only
 python3 bin/lsl card    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--period all|90d|30d|7d] [--percent-only] [--png] [--per-account]
 python3 bin/lsl purge   --data-dir DATA [--source rh|hl|all] --yes
 python3 bin/lsl hl tokens --unit                           # public spotMeta lookup for the whitelist
@@ -55,6 +55,9 @@ python3 bin/lsl hl tokens --unit                           # public spotMeta loo
 `data_quality.json` and `page.json` to `DATA/out/<scope-slug>/` (`--out DIR`
 overrides). `card` writes `share-card.svg` (and `share-card.png` with `--png`)
 next to them. With no source at all, `compute` returns an error asking for one.
+`page --compact` rewrites `page.json` small enough to paste into one Page write:
+same numbers, shorter lists (one share card, top asset groups, 24-point
+sparklines, first 12 Robinhood positions); see `lsl/page.py` `compact()`.
 
 ### Scopes
 

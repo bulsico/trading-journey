@@ -289,7 +289,9 @@
     "download_blocked": "This viewer blocked the download. Ask the bot for the file.",
     "strip": "Win / loss strip",
     "no_card": "Not enough closed trades for a share card yet.",
-    "stats_caption": "Dash = not enough data in that window (fewer than 3 closed trades, or history starts later)."
+    "stats_caption": "Dash = not enough data in that window (fewer than 3 closed trades, or history starts later).",
+    "positions_more": "{n} more positions are listed in the chat report.",
+    "download_hint": "Some viewers block downloads from a Page; if nothing saves, ask the bot for the PNG."
   },
   "profile": {
     "combined": "Combined",
@@ -452,6 +454,7 @@
     "all_accounts": "All accounts",
     "list_sep": ", ",
     "clause_sep": "; ",
-    "with_shares": "{body} {shares}"
+    "with_shares": "{body} {shares}",
+    "card_on_request": "Ask the bot for this account's card."
   }
 }

@@ -17,7 +17,7 @@ It is kept between runs so later runs sync incrementally; `--run` is an alias.
   lsl compute    [--data-dir DATA] [--scope SCOPE] [--out DIR] [--lang zh|en]
                  SCOPE: all (default) | rh | rh:<account> | hl | hl:<address>; outputs go to
                  DATA/out/<scope-slug>/ unless --out is given
-  lsl page       [--out DIR | --data-dir DATA --scope SCOPE] [--lang en|zh]   rebuild page.json
+  lsl page       [--out DIR | --data-dir DATA --scope SCOPE] [--lang en|zh] [--compact]   rebuild page.json
   lsl card       [--out DIR | --data-dir DATA --scope SCOPE] [--period all|90d|30d|7d]
                  [--percent-only] [--lang en|zh] [--png] [--per-account]
                                                      share card SVG (+PNG); --per-account adds
@@ -109,6 +109,8 @@ def main(argv=None):
     pg.add_argument("--out", help="dir holding the compute outputs (default DATA/out/<scope-slug>)")
     pg.add_argument("--scope", default="all")
     pg.add_argument("--lang", default="en", choices=["zh", "en"])
+    pg.add_argument("--compact", action="store_true",
+                    help="small payload for pasting into one Page write (fixed trims, see lsl/page.py compact)")
     cd = sub.add_parser("card")
     _data(cd)
     cd.add_argument("--out", help="dir holding the compute outputs (default DATA/out/<scope-slug>)")
@@ -182,7 +184,7 @@ def main(argv=None):
         return 1 if "error" in res else 0
     if a.cmd == "page":
         from . import page
-        res = page.run(_scope_out(a), a.lang)
+        res = page.run(_scope_out(a), a.lang, a.compact)
         sys.stdout.write(dumps(res))
         return 1 if "error" in res else 0
     if a.cmd == "card":

@@ -122,6 +122,44 @@ class Breakdown(Base):
         with open(zh["svg"], encoding="utf-8") as f:
             self.assertIn("4 个账户", f.read())
 
+    def test_compact_page(self):
+        from lsl import page as page_mod
+        for lang in ("en", "zh"):
+            res, sm, full = self.compute(lang=lang)
+            out = res["out"]
+            r = page_mod.run(out, lang, compact_=True)
+            self.assertTrue(r["compact"])
+            with open(os.path.join(out, "page.json"), "rb") as f:
+                b1 = f.read()
+            page_mod.run(out, lang, compact_=True)
+            with open(os.path.join(out, "page.json"), "rb") as f:
+                self.assertEqual(f.read(), b1)  # deterministic
+            pg = json.loads(b1)
+            self.assertEqual(r["inline_bytes"], len(json.dumps(pg, ensure_ascii=False, separators=(",", ":"),
+                                                                sort_keys=True).encode()))
+            self.assertTrue(pg["compact"] and pg["card"]["compact"])
+            self.assertFalse(full["compact"])
+            per = full["card"]["default"]["period"]
+            # the one card kept is byte-identical to the full payload's; per-account cards move to chat/CLI
+            self.assertEqual(pg["card"]["variants"], {per + ".usd": full["card"]["variants"][per + ".usd"]})
+            self.assertEqual(pg["card"]["accounts"], [])
+            self.assertEqual([x["id"] for x in pg["card"]["periods"]], [per])
+            # numbers the page shows are unchanged; only lists are shortened
+            for k in ("tldr", "headline", "years", "journey", "persona", "profile", "data_quality", "ui"):
+                self.assertEqual(pg[k], full[k], k)
+            self.assertEqual([r_["key"] for r_ in pg["accounts"]["rows"]], [r_["key"] for r_ in full["accounts"]["rows"]])
+            for a, b in zip(pg["accounts"]["rows"], full["accounts"]["rows"]):
+                self.assertEqual({k: v for k, v in a.items() if k != "spark"}, {k: v for k, v in b.items() if k != "spark"})
+                self.assertLessEqual(len(a["spark"]["values"]), page_mod.COMPACT["spark_points"])
+                self.assertEqual(a["spark"]["values"][-1], b["spark"]["values"][-1])
+            G = pg["assets"]["groups"]
+            self.assertLessEqual(len(G["multi_venue"]), page_mod.COMPACT["groups_multi"])
+            self.assertEqual({x["group"] for x in G["rows"]}, set(G["best"] + G["worst"] + G["multi_venue"]))
+            self.assertEqual(G["best"], full["assets"]["groups"]["best"][:len(G["best"])])
+            P, FP = pg["positions"], full["positions"]
+            self.assertEqual(len(P["rh"]) + P["rh_more"], len(FP["rh"]))
+            self.assertLess(r["inline_bytes"], len(json.dumps(full, ensure_ascii=False, separators=(",", ":")).encode()))
+
     def test_card_period_and_skip(self):
         res, sm, _ = self.compute()
         r = card.run(res["out"], period="7d", per_account_cards=True)

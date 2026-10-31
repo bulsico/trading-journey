@@ -9,6 +9,7 @@ Input is only summary/series/open_positions/data_quality.json, so this step
 can be re-run after the raw fetch state has been deleted.
 """
 import datetime as dt
+import json
 import math
 import os
 from collections import defaultdict
@@ -749,16 +750,72 @@ def build(sm, se, op, dq, lang="en"):
     page["profile"] = report.profile_block(sm, lang)
     page["card"] = card_mod.page_block(sm, se, lang)
     page["tldr"] = report.tldr(sm, page, lang)
+    page["compact"] = False
+    page["positions"]["rh_more"] = 0
+    page["card"]["compact"] = False
     return page
 
 
-def run(out_dir, lang="en"):
-    """Rebuild page.json in out_dir from the compute outputs there, in `lang`."""
+# --compact: the Page source is pasted inline in one WriteCanvas call, so the payload must stay
+# small. Fixed, deterministic trims; everything dropped stays in the chat report and the CLI.
+COMPACT = {"spark_points": 24, "groups_best": 5, "groups_worst": 5, "groups_multi": 8, "rh_positions": 12}
+
+
+def _pick(seq, n):
+    """n evenly spaced items of seq, first and last included (seq itself when short enough)."""
+    m = len(seq)
+    if m <= n:
+        return list(seq)
+    return [seq[int(round(i * (m - 1) / (n - 1)))] for i in range(n)]
+
+
+def compact(page):
+    """Shrink a built page in place (and return it):
+    - share card: only the default period in $ (no % or other periods); per-account cards are
+      dropped from the Page (they stay available via `lsl card --per-account`);
+    - asset groups: top 5 best / 5 worst / 8 multi-venue;
+    - per-account sparklines: 24 points; Robinhood positions: first 12 rows (`rh_more` counts the rest);
+    - fields the Page template never reads (`scopes`, `assets.best`, `assets.worst`)."""
+    C = page["card"]
+    per = (C.get("default") or {}).get("period")
+    keep = "%s.usd" % per
+    C["variants"] = {keep: C["variants"][keep]} if per and keep in C["variants"] else {}
+    C["periods"] = [x for x in C["periods"] if x["id"] == per]
+    C["badges"] = {k: v for k, v in C["badges"].items() if k == per}
+    C["accounts"] = []
+    C["compact"] = True
+    G = page["assets"]["groups"]
+    G["best"] = G["best"][:COMPACT["groups_best"]]
+    G["worst"] = G["worst"][:COMPACT["groups_worst"]]
+    G["multi_venue"] = G["multi_venue"][:COMPACT["groups_multi"]]
+    shown = set(G["best"] + G["worst"] + G["multi_venue"])
+    G["rows"] = [r for r in G["rows"] if r["group"] in shown]
+    page["assets"].pop("best", None)
+    page["assets"].pop("worst", None)
+    page.pop("scopes", None)
+    for r in page["accounts"]["rows"]:
+        sp = r["spark"]
+        vals = _pick(sp["values"], COMPACT["spark_points"])
+        r["spark"] = dict(axis(vals), labels=_pick(sp["labels"], COMPACT["spark_points"]), values=vals, unit=sp["unit"])
+    P = page["positions"]
+    n = COMPACT["rh_positions"]
+    P["rh_more"] = max(0, len(P["rh"]) - n)
+    P["rh"] = P["rh"][:n]
+    page["compact"] = True
+    return page
+
+
+def run(out_dir, lang="en", compact_=False):
+    """Rebuild page.json in out_dir from the compute outputs there, in `lang` (`compact_`: see compact())."""
     docs = {n: read_json(os.path.join(out_dir, n + ".json"))
             for n in ("summary", "series", "open_positions", "data_quality")}
     missing = sorted(n for n, d in docs.items() if d is None)
     if missing:
         return {"error": "missing %s in %s" % (", ".join(missing), out_dir)}
     page = build(docs["summary"], docs["series"], docs["open_positions"], docs["data_quality"], lang)
-    write_json(os.path.join(out_dir, "page.json"), page)
-    return {"status": "done", "out": os.path.abspath(os.path.join(out_dir, "page.json"))}
+    if compact_:
+        compact(page)
+    path = os.path.join(out_dir, "page.json")
+    write_json(path, page)
+    return {"status": "done", "out": os.path.abspath(path), "compact": bool(compact_),
+            "inline_bytes": len(json.dumps(page, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode())}

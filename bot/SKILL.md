@@ -22,8 +22,8 @@ rasterizer for the PNG share card (see step 5).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.1 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.1 2>/dev/null; git checkout -q v0.2.1
+[ -d $REPO/.git ] || git clone --branch v0.2.2 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.2 2>/dev/null; git checkout -q v0.2.2
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```
@@ -183,8 +183,11 @@ Page has the same cards behind an account picker and on each By-account row.
 
 Read your Pages (canvas) skill before the first `WriteCanvas`.
 
-1. Fill the template with the exact compact dump:
+1. Rebuild the payload in compact form (the whole Page source goes inline in
+   one `WriteCanvas` call, so it must stay small), then fill the template with
+   the exact compact dump:
    ```bash
+   python3 bin/lsl page --data-dir $DATA --scope $SCOPE --lang $LANG_ --compact
    python3 - "$OUT/page.json" bot/page-template.tsx "$OUT/page.tsx" <<'PY'
    import json, sys
    d = json.dumps(json.load(open(sys.argv[1])), ensure_ascii=False, separators=(",", ":"), sort_keys=True)
@@ -214,6 +217,14 @@ It opens with the TL;DR, the share card (account picker when there are several
 accounts, period and $/% toggles, Download PNG / Download SVG), and the trader
 profile ($/% toggle, venue selector, 7D/30D/90D/All table). The Page is
 private to the user, so real tickers and amounts are fine there.
+
+`--compact` keeps every number the Page shows and only shortens lists: the
+share card is the default period in $ (the % and other-period cards, and the
+per-account cards, stay available via `lsl card`; account rows say to ask you),
+asset groups are the top 5 best / 5 worst / 8 multi-venue, account sparklines
+use 24 points, and Robinhood positions show the first 12 rows with a "N more"
+line. Some viewers block downloads from a Page; the card section says so, so
+when the user asks, send `share-card.png` from `$OUT` in chat.
 
 ## 7. Chat report
 

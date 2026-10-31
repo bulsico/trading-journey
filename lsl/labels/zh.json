@@ -289,7 +289,9 @@
     "download_blocked": "当前查看器拦截了下载，直接找机器人要文件。",
     "strip": "胜负条",
     "no_card": "平仓笔数还不够，暂时生成不了分享卡片。",
-    "stats_caption": "横线 = 该时段数据不足（少于 3 笔平仓，或历史起点更晚）。"
+    "stats_caption": "横线 = 该时段数据不足（少于 3 笔平仓，或历史起点更晚）。",
+    "positions_more": "另有 {n} 个持仓见聊天报告。",
+    "download_hint": "有些查看器会拦截页面里的下载；如果没有保存成功，直接向机器人要 PNG。"
   },
   "profile": {
     "combined": "合并",
@@ -452,6 +454,7 @@
     "all_accounts": "全部账户",
     "list_sep": "、",
     "clause_sep": "；",
-    "with_shares": "{body}{shares}"
+    "with_shares": "{body}{shares}",
+    "card_on_request": "想要这个账户的卡片，直接问机器人。"
   }
 }

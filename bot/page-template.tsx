@@ -91,7 +91,7 @@ function accountSection(r: any, period: string, mode: string, onFail: () => void
           <Button label={L.download_svg} onClick={() => { if (!save(svgUrl(svg), acctFile(c, period, mode) + ".svg")) onFail(); }} />
         </Grid>
       ) : (
-        <Text>{L.no_card}</Text>
+        <Text>{CARD.compact ? L.card_on_request : L.no_card}</Text>
       )}
     </Section>
   );
@@ -143,8 +143,10 @@ export default function TradingJourney() {
   const [cmode, setCmode] = useState<string>(CARD.default.mode);
   const [blocked, setBlocked] = useState<boolean>(false);
   const cper = periods.some((p) => p.id === period) ? period : CA.default.period;
-  const svg = cper ? (CA.variants as Record<string, string>)[`${cper}.${cmode}`] : undefined;
-  const fname = `${CA.filename}-${cper}${cmode === "pct" ? "-pct" : ""}`;
+  const hasPct = Object.keys(CA.variants).some((k) => k.endsWith(".pct"));
+  const cm = hasPct ? cmode : "usd";
+  const svg = cper ? (CA.variants as Record<string, string>)[`${cper}.${cm}`] : undefined;
+  const fname = `${CA.filename}-${cper}${cm === "pct" ? "-pct" : ""}`;
   const cardLabel = cacct === "all" ? D.scope.label : CA.label;
   const AL = ACC.labels as Record<string, string>;
   const picker = [{ value: "all", label: AL.all_accounts }, ...CARD_ACCTS.map((c) => ({ value: c.key as string, label: c.label as string }))];
@@ -169,8 +171,8 @@ export default function TradingJourney() {
       {VARIANTS["all.usd"] || CARD_ACCTS.length ? (
         <Section heading={U.share_card} caption={`${cardLabel} · ${U.card_note}`}>
           {CARD_ACCTS.length ? <Select label={AL.picker} options={picker} value={cacct} onChange={setCacct} /> : null}
-          {periods.length ? <Segmented options={periods.map((p) => ({ value: p.id, label: p.label }))} value={cper} onChange={setPeriod} /> : null}
-          <Segmented options={money} value={cmode} onChange={setCmode} />
+          {periods.length > 1 ? <Segmented options={periods.map((p) => ({ value: p.id, label: p.label }))} value={cper} onChange={setPeriod} /> : null}
+          {hasPct ? <Segmented options={money} value={cm} onChange={setCmode} /> : null}
           {svg ? (
             <>
               <Image src={svgUrl(svg)} alt={`${U.share_card} · ${cardLabel}`} fit="contain" />
@@ -178,6 +180,7 @@ export default function TradingJourney() {
                 <Button variant="primary" label={U.download_png} onClick={() => savePng(svg, fname, () => setBlocked(true))} />
                 <Button label={U.download_svg} onClick={() => { if (!save(svgUrl(svg), fname + ".svg")) setBlocked(true); }} />
               </Grid>
+              <Text>{U.download_hint}</Text>
             </>
           ) : (
             <Text>{AL.no_card}</Text>
@@ -253,7 +256,7 @@ export default function TradingJourney() {
           ))}
           {ACC.none ? <Text>{ACC.none}</Text> : null}
           {ACC.shared_display ? <Text>{ACC.shared_display}</Text> : null}
-          {(ACC.rows as any[]).map((r) => accountSection(r, cper || CARD.default.period, cmode, () => setBlocked(true)))}
+          {(ACC.rows as any[]).map((r) => accountSection(r, cper || CARD.default.period, cm, () => setBlocked(true)))}
         </Section>
       ) : null}
 
@@ -356,6 +359,7 @@ export default function TradingJourney() {
               columns={[U.col_symbol, U.col_account, U.col_class, U.col_side, U.col_qty, U.col_avg, U.col_cost, U.col_share_cost, U.col_expires, U.col_history, U.col_flags]}
               rows={(POS.rh as any[]).map((r) => [r.sym, acctLabel(r.acct), r.cls, r.side, r.qty_display, r.avg_price_display, r.cost_basis_display, r.share_display, r.expiration ? `${r.expiration} (${r.days_to_expiry}d)` : "-", cell(r.history_display, r.history_tone), r.flags.length ? cell(flagText(r.flags), "warning") : "-"])}
             />
+            {POS.rh_more ? <Text>{fmt(U.positions_more, { n: POS.rh_more })}</Text> : null}
           </Section>
         ) : null}
         {(POS.hl_spot as any[]).length ? (
