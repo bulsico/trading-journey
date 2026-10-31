@@ -1,10 +1,14 @@
 """Share card: a 1200x675 dark SVG (optionally PNG) summing up one report scope.
 
     lsl card [--out DIR | --data-dir DATA --scope S] [--period all|90d|30d|7d]
-             [--percent-only] [--lang en|zh] [--png]   -> DIR/share-card.svg (+ .png)
+             [--percent-only] [--lang en|zh] [--png] [--per-account]
+        -> DIR/share-card.svg (+ .png); with --per-account (several accounts) also one card per
+           account in DIR/cards/<account-slug>.svg (+ .png), from the same compute output.
 
 Pure stdlib, fixed layout and font stack, so the same inputs give byte-identical SVG.
 Every number comes from summary.json / series.json (profile periods, daily cumulative).
+A combined card (scope all) with several accounts adds "N accounts" to its scope line; an
+account card names that account and uses its own profile, liquidations and equity curve.
 Privacy: the card names only the scope label (e.g. "All accounts", "Robinhood Roth IRA ...1234",
 "0xabcd...1234"); never a full address or account number.  --percent-only drops every dollar
 figure: the big number becomes return on volume and drawdown is shown as a share of peak.
@@ -108,6 +112,12 @@ def spark(se, scope_key, start, end):
     return [0.0] + pts
 
 
+def account_rows(sm):
+    """The per-account rows of a combined report ([] with fewer than two accounts)."""
+    a = sm.get("accounts") or {}
+    return a.get("rows") or [] if (a.get("count") or 0) > 1 else []
+
+
 def data(sm, se, period="all", key="all"):
     prof = (sm.get("profile") or {}).get(key) or {}
     p = (prof.get("periods") or {}).get(period) or {}
@@ -118,16 +128,26 @@ def data(sm, se, period="all", key="all"):
     strip = prof.get("strip") or ""
     if period != "all":
         strip = strip[-min(len(strip), p["closed_trades"]):] if p["closed_trades"] else ""
+    rows = account_rows(sm)
+    acct = next((r for r in rows if r["key"] == key), None) if key != "all" else None
+    if acct:
+        liq = ((sm.get("scopes") or {}).get(key) or {}).get("liquidated_trades") or 0
+        label, labels, kind, srcs, n = acct["label"], acct.get("labels") or {}, "account", [acct["venue"]], 0
+    else:
+        liq = o.get("liquidated_trades") or 0
+        label, labels, kind = scope.get("label"), scope.get("labels") or {}, scope.get("kind", "all")
+        srcs = [s for s in ("rh", "hl") if (sm.get("sources") or {}).get(s)]
+        n = len(rows) if kind == "all" else 0
     return {"period": period, "p": p, "style": prof.get("style"),
-            "badge": badge(p, prof, o.get("liquidated_trades") or 0, period),
-            "scope_label": scope.get("label"), "scope_labels": scope.get("labels") or {}, "scope_kind": scope.get("kind", "all"),
-            "sources": [s for s in ("rh", "hl") if (sm.get("sources") or {}).get(s)],
+            "badge": badge(p, prof, liq, period), "key": key, "n_accounts": n,
+            "scope_label": label, "scope_labels": labels, "scope_kind": kind,
+            "sources": srcs,
             "as_of": (sm.get("as_of") or "")[:10], "strip": strip[-STRIP_MAX:],
             "spark": spark(se, key, p["start"], p["end"])}
 
 
-def available(sm):
-    prof = (sm.get("profile") or {}).get("all") or {}
+def available(sm, key="all"):
+    prof = (sm.get("profile") or {}).get(key) or {}
     return [x for x in PERIOD_ORDER if ((prof.get("periods") or {}).get(x) or {}).get("enough")]
 
 
@@ -147,6 +167,8 @@ def svg(d, lang="en", percent_only=False):
     scope = d["scope_labels"].get(lang) or d["scope_label"] or T["all_accounts"]
     src = " + ".join({"rh": "Robinhood", "hl": "Hyperliquid"}[s] for s in d["sources"])
     sub = "%s \u00b7 %s" % (scope, src) if d["scope_kind"] == "all" and src else scope
+    if d.get("n_accounts", 0) > 1:
+        sub += " \u00b7 " + T["n_accounts"] % d["n_accounts"]
     per = T["periods"][d["period"]]
     o = []
     a = o.append
@@ -230,22 +252,30 @@ def fnum(x):
 
 
 # ----------------------------------------------------------------- page / cli
-def page_block(sm, se, lang="en"):
-    """Every available period x {usd, pct} as inline SVG strings for the Page."""
+def _variants(sm, se, lang, key):
     T = L(lang)
-    periods = available(sm)
+    periods = available(sm, key)
     variants, badges = {}, {}
     for per in periods:
-        d = data(sm, se, per)
+        d = data(sm, se, per, key)
         variants[per + ".usd"] = svg(d, lang, False)
         variants[per + ".pct"] = svg(d, lang, True)
         badges[per] = {"code": d["badge"], "name": T["badges"][d["badge"]]["name"] if d["badge"] else None,
                        "tagline": T["badges"][d["badge"]]["tagline"] if d["badge"] else None}
-    slug = (sm.get("scope") or {}).get("slug") or "all"
     return {"periods": [{"id": x, "label": T["periods"][x]} for x in periods],
             "default": {"period": periods[0] if periods else None, "mode": "usd"},
-            "variants": variants, "badges": badges, "filename": "trading-journey-%s" % slug,
-            "width": W, "height": H}
+            "variants": variants, "badges": badges}
+
+
+def page_block(sm, se, lang="en"):
+    """Every available period x {usd, pct} as inline SVG strings for the Page; with several
+    accounts also the same per account ("accounts", in By-account row order)."""
+    slug = (sm.get("scope") or {}).get("slug") or "all"
+    out = dict(_variants(sm, se, lang, "all"), filename="trading-journey-%s" % slug, width=W, height=H)
+    out["accounts"] = [dict(_variants(sm, se, lang, r["key"]), key=r["key"], slug=r["slug"],
+                            label=(r.get("labels") or {}).get(lang) or r["label"],
+                            filename="trading-journey-%s" % r["slug"]) for r in account_rows(sm)]
+    return out
 
 
 def rasterizer():
@@ -281,7 +311,41 @@ INSTALL_HINT = ("no SVG rasterizer found; install one for PNG output: `sudo apt-
                 "(rsvg-convert), `brew install librsvg`, or `pip install cairosvg`")
 
 
-def run(out_dir, period="all", percent_only=False, png=False, lang="en"):
+def _write(path, s, png, res):
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(s)
+    res["svg"] = os.path.abspath(path)
+    if png:
+        pp = path[:-4] + ".png"
+        tool = to_png(path, pp)
+        if tool:
+            res.update({"png": os.path.abspath(pp), "rasterizer": tool})
+        else:
+            res.update({"png": None, "hint": INSTALL_HINT})
+    return res
+
+
+def per_account(sm, se, out_dir, period="all", percent_only=False, png=False, lang="en"):
+    """One card per account into out_dir/cards/<slug>.svg (+ .png), in By-account row order.
+    An account without enough history for `period` is listed with its available periods."""
+    out = []
+    rows = account_rows(sm)
+    if rows:
+        os.makedirs(os.path.join(out_dir, "cards"), exist_ok=True)
+    for r in rows:
+        avail = available(sm, r["key"])
+        res = {"account": r["key"], "label": (r.get("labels") or {}).get(lang) or r["label"], "slug": r["slug"],
+               "available_periods": avail}
+        if period not in avail:
+            res["skipped"] = "period %r has too little data for this account" % period
+        else:
+            _write(os.path.join(out_dir, "cards", r["slug"] + ".svg"),
+                   svg(data(sm, se, period, r["key"]), lang, percent_only), png, res)
+        out.append(res)
+    return out
+
+
+def run(out_dir, period="all", percent_only=False, png=False, lang="en", per_account_cards=False):
     sm = read_json(os.path.join(out_dir, "summary.json"))
     se = read_json(os.path.join(out_dir, "series.json"))
     if sm is None or se is None:
@@ -289,18 +353,10 @@ def run(out_dir, period="all", percent_only=False, png=False, lang="en"):
     avail = available(sm)
     if period not in avail:
         return {"error": "period %r has too little data for a card" % period, "available_periods": avail}
-    s = svg(data(sm, se, period), lang, percent_only)
-    path = os.path.join(out_dir, "share-card.svg")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(s)
-    res = {"status": "done", "svg": os.path.abspath(path), "period": period, "lang": lang,
+    res = {"status": "done", "period": period, "lang": lang,
            "percent_only": percent_only, "scope": (sm.get("scope") or {}).get("id", "all"),
-           "available_periods": avail}
-    if png:
-        pp = os.path.join(out_dir, "share-card.png")
-        tool = to_png(path, pp)
-        if tool:
-            res.update({"png": os.path.abspath(pp), "rasterizer": tool})
-        else:
-            res.update({"png": None, "hint": INSTALL_HINT})
+           "available_periods": avail, "accounts": len(account_rows(sm))}
+    _write(os.path.join(out_dir, "share-card.svg"), svg(data(sm, se, period), lang, percent_only), png, res)
+    if per_account_cards:
+        res["cards"] = per_account(sm, se, out_dir, period, percent_only, png, lang)
     return res

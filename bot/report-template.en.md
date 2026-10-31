@@ -22,7 +22,8 @@ interpret: never compute, convert or re-round a number yourself.
 - Positions: `open_positions.json` (`hl_perp`, `hl_spot`, `rh`; `liq_distance_pct`, `asset_history`)
 - Grade: `persona.grade`, `persona.grade_label`
 - Data quality: `data_quality.json` `pass` and `checks`; `summary.approximate.share` is the FIFO-estimated share. If > 0, say "some P&L is estimated"
-- Share card: `share-card.png` (or `.svg`) from `bin/lsl card --scope <scope> --lang en --png`; attach it
+- Share card: `share-card.png` (or `.svg`) from `bin/lsl card --scope <scope> --lang en --png`; attach it. Per-account cards (`--per-account`) only when the user asks for one
+- By account (only when `summary.accounts.count` > 1): `page.json` → `accounts.rows[]` in order (`label`, `net_display`, `share_display`, `rov_display`, `volume_display`, `trades`, `win_rate_display`, `max_dd_display`, `best_display`, `worst_display`, `style_display`, `period_display`), `accounts.total`, `accounts.insights[]` (`lead`, `body`), `accounts.none`, `accounts.shared_display`. Raw values and the rules: `summary.accounts` (`rows`, `totals`, `reconciliation`, `insights`)
 
 ---
 
@@ -55,6 +56,19 @@ number from the files.
 {page.json tldr, one line each, verbatim}
 
 {attach the share card}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{only when accounts.count > 1; otherwise skip the section entirely:}
+## 🗂️ By account
+
+| Account | Net P&L | Share of total | Return on volume | Trades | Win rate | Style |
+|------|------|------|------|------|------|------|
+{one row per accounts.rows entry, in order, display fields verbatim; then the accounts.total row}
+
+{each accounts.insights entry as "**{lead}**: {body}", verbatim; if there are none, accounts.none}
+
+{1-2 sentences: which account carried the result and which bled it, and whether the accounts fought each other (opposite bets); interpretation only, every number copied from the rows}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

@@ -396,7 +396,8 @@
         "tagline": "Green, one trade at a time."
       }
     },
-    "net_pnl_ex_funding": "Net P&L · after fees, excl. HL funding"
+    "net_pnl_ex_funding": "Net P&L · after fees, excl. HL funding",
+    "n_accounts": "%d accounts"
   },
   "tldr": {
     "headline": "Net P&L {net} over {days} days ({start} → {end}), fees and funding included.",
@@ -411,6 +412,46 @@
     "trades_best": "Best trade: {best} {best_pnl}.",
     "trades_worst": "Worst trade: {worst} {worst_pnl}.",
     "headline_1": "Net P&L {net} over {days} day ({start} → {end}), fees and funding included.",
-    "win_rate_1": "Win rate {win_rate} on {trades} closed trade; avg win / avg loss {payoff}."
+    "win_rate_1": "Win rate {win_rate} on {trades} closed trade; avg win / avg loss {payoff}.",
+    "accounts": "Across {n} accounts, {carry} carried ({carry_pnl}) and {bleed} bled ({bleed_pnl}).",
+    "accounts_carry": "Across {n} accounts, {carry} carried the most ({carry_pnl}).",
+    "accounts_bleed": "Across {n} accounts, {bleed} bled the most ({bleed_pnl})."
+  },
+  "accounts": {
+    "heading": "By account",
+    "caption": "{n} accounts in one combined report. Rows add up to the totals to the cent; net includes HL funding.",
+    "total": "Total",
+    "col_account": "Account",
+    "col_net": "Net P&L",
+    "col_rov": "Return on volume",
+    "col_volume": "Volume",
+    "col_trades": "Trades",
+    "col_win_rate": "Win rate",
+    "col_max_dd": "Max drawdown",
+    "col_best": "Best asset",
+    "col_worst": "Worst asset",
+    "col_style": "Style",
+    "col_share": "Share of total",
+    "col_period": "Active",
+    "detail_caption": "{venue} · {period} · before funding {net_ex} · funding {funding}",
+    "equity": "Cumulative net P&L, before funding",
+    "download_png": "Download card (PNG)",
+    "download_svg": "Download card (SVG)",
+    "no_card": "Not enough closed trades for a card yet.",
+    "opposing_lead": "Opposite bets on {symbol}",
+    "opposing_body": "Long in {long}; short in {short}.",
+    "side_item": "{label} ({trades} trades, {net})",
+    "open_lead": "Held both ways right now: {symbol}",
+    "open_body": "Long in {long}; short in {short}.",
+    "offset_lead": "Losing accounts gave back {given_back} of the gains",
+    "offset_body": "{winners} made {gain}; {losers} lost {loss}.",
+    "loser_share": "{label}: {share} of the gains",
+    "shared": "{n} assets were traded in more than one account.",
+    "none": "No cross-account conflicts: no asset was traded in opposite directions and no account offset another.",
+    "picker": "Card for",
+    "all_accounts": "All accounts",
+    "list_sep": ", ",
+    "clause_sep": "; ",
+    "with_shares": "{body} {shares}"
   }
 }

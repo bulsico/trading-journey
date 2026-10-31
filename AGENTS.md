@@ -31,9 +31,10 @@ Layout:
 | `lsl/hl.py` | Hyperliquid address book (add/remove/list) and per-address fetch |
 | `lsl/scope.py` | `--scope` parsing, labels, out-dir slugs |
 | `lsl/profile.py` | trader profile (formulas and thresholds documented in the docstring and README) |
-| `lsl/card.py` | share card SVG, badges, optional PNG |
+| `lsl/accounts.py` | per-account breakdown of a combined report: rows, cent-exact reconciliation, cross-account insights (rules in the docstring) |
+| `lsl/card.py` | share card SVG, badges, optional PNG, per-account cards |
 | `lsl/report.py` | TL;DR lines |
 | `lsl/fifo.py`, `lsl/compute.py`, `lsl/persona.py` | P&L, stats, persona |
 | `lsl/assets.py`, `lsl/data/` | cross-venue grouping, HL spot whitelist |
 | `lsl/page.py`, `lsl/labels/` | page.json and en/zh labels |
-| `tests/` | synthetic fixtures; `test_sources.py` covers source combinations, scopes, card, profile |
+| `tests/` | synthetic fixtures; `test_sources.py` covers source combinations, scopes, card, profile; `test_accounts.py` the By-account breakdown and per-account cards |

@@ -2,7 +2,9 @@
 
 - ui(lang)               section headings / column names the Page template shows
 - profile_block(sm,lang) the trader profile (Hyperdash-style) per venue, $ and % variants
-- tldr(sm, page, lang)   3-5 line TLDR that opens the report and the Page
+- tldr(sm, page, lang)   3-5 line TLDR that opens the report and the Page (with several
+                         accounts one line names the account that carried and the one that bled,
+                         in place of the best/worst single trade line)
 
 The bot never recomputes any of this; it pastes it and adds prose around it.
 """
@@ -108,12 +110,38 @@ def _one(pr, lang):
             "periods": {"ids": ids, "labels": [C["periods"][x] for x in ids], "rows": rows}}
 
 
+def accounts_line(sm, lang):
+    """The TLDR accounts line (None with fewer than two accounts or no winner/loser)."""
+    a = sm.get("accounts") or {}
+    rows = a.get("rows") or []
+    if (a.get("count") or 0) < 2:
+        return None
+    T = labels(lang)["tldr"]
+    win = sorted((r for r in rows if r["net_pnl_incl_funding"] > 0), key=lambda r: (-r["net_pnl_incl_funding"], r["label"]))
+    lose = sorted((r for r in rows if r["net_pnl_incl_funding"] < 0), key=lambda r: (r["net_pnl_incl_funding"], r["label"]))
+
+    def lab(r):
+        return (r.get("labels") or {}).get(lang) or r["label"]
+    v = {"n": num(len(rows))}
+    if win:
+        v.update(carry=lab(win[0]), carry_pnl=money(win[0]["net_pnl_incl_funding"], True))
+    if lose:
+        v.update(bleed=lab(lose[0]), bleed_pnl=money(lose[0]["net_pnl_incl_funding"], True))
+    if win and lose:
+        return T["accounts"].format(**v)
+    if win:
+        return T["accounts_carry"].format(**v)
+    if lose:
+        return T["accounts_bleed"].format(**v)
+    return None
+
+
 def profile_block(sm, lang):
+    """Venue tabs: all, plus rh and hl when both exist (accounts live in the By-account section)."""
     prof = sm.get("profile") or {}
     keys = ["all"]
     if "rh" in prof and "hl" in prof:
         keys += ["rh", "hl"]
-    keys += sorted(k for k in prof if k.startswith("hl."))
     return {"default": "all", "venues": [{"key": k, "label": _venue_label(k, lang)} for k in keys],
             "by": {k: _one(prof[k], lang) for k in keys if k in prof}, "strip_n": STRIP_N}
 
@@ -126,6 +154,9 @@ def tldr(sm, page, lang):
         return [T["no_trades"].format(fills=num(o["fills"]))]
     lines.append(T["headline_1" if o["period"]["days"] == 1 else "headline"].format(net=money(o["net_pnl_incl_funding"], True), days=num(o["period"]["days"]),
                                       start=o["period"]["from"], end=o["period"]["to"]))
+    acc = accounts_line(sm, lang)
+    if acc:
+        lines.append(acc)
     g = page["assets"]["groups"]
     rows = {r["group"]: r for r in g["rows"]}
     b = rows.get(g["best"][0]) if g["best"] else None
@@ -141,7 +172,9 @@ def tldr(sm, page, lang):
         lines.append(T["assets_worst"].format(worst=w["symbol"], worst_pnl=w["net_display"]))
     bt = [t for t in (sm.get("best_trades") or [])[:1] if t["pnl"] > 0]
     wt = [t for t in (sm.get("worst_trades") or [])[:1] if t["pnl"] < 0]
-    if bt and wt:
+    if acc:
+        pass
+    elif bt and wt:
         lines.append(T["trades"].format(best=bt[0]["sym"], best_pnl=money(bt[0]["pnl"], True),
                                         worst=wt[0]["sym"], worst_pnl=money(wt[0]["pnl"], True)))
     elif bt:

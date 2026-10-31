@@ -99,9 +99,15 @@ class Combinations(Base):
             ids = [h["id"] for h in pg["headline"]]
             self.assertEqual("net_funding" in ids, bool(hl_n))
             venues = [v["key"] for v in pg["profile"]["venues"]]
-            exp = ["all"] + (["rh", "hl"] if rh and hl_n else []) + (
-                sorted(k for k in sm["profile"] if k.startswith("hl.")) if hl_n > 1 else [])
-            self.assertEqual(venues, exp)
+            self.assertEqual(venues, ["all"] + (["rh", "hl"] if rh and hl_n else []))
+            # one combined report; accounts broken out inside it (section hidden for one account)
+            n_acct = (len(ACCTS) if rh else 0) + hl_n
+            self.assertEqual(sm["accounts"]["count"], n_acct)
+            self.assertTrue(sm["accounts"]["reconciliation"]["all_match"], sm["accounts"]["reconciliation"])
+            self.assertEqual(pg["accounts"]["show"], n_acct > 1)
+            self.assertEqual(pg["has"]["accounts"], n_acct > 1)
+            self.assertEqual(len(pg["accounts"]["rows"]), n_acct if n_acct > 1 else 0)
+            self.assertEqual(len(pg["card"]["accounts"]), n_acct if n_acct > 1 else 0)
             self.assertEqual(sm["profile"]["all"]["closed_trades"], sm["overall"]["closed_trades"])
             # card: every listed period renders, for both money modes; output is deterministic
             self.assertTrue(pg["card"]["periods"])
@@ -115,8 +121,9 @@ class Combinations(Base):
             with open(r1["svg"], "rb") as f:
                 self.assertEqual(f.read(), a)
             self.assertEqual(a.decode(), pg["card"]["variants"]["all.usd"])
-            pct_only = card.svg(card.data(sm, json.load(open(os.path.join(res["out"], "series.json")))),
-                                lang, percent_only=True)
+            with open(os.path.join(res["out"], "series.json")) as f:
+                se = json.load(f)
+            pct_only = card.svg(card.data(sm, se), lang, percent_only=True)
             self.assertNotIn("$", pct_only)
         return sm, pg
 
@@ -131,7 +138,6 @@ class Combinations(Base):
     def test_hl_multi_only(self):
         sm, pg = self.check(False, 2)
         self.assertTrue(pg["has"]["hl_multi"])
-        self.assertEqual([v["key"] for v in pg["profile"]["venues"]][1:], sorted(k for k in sm["profile"] if k.startswith("hl.")))
         self.assertEqual(len(sm["hl_addresses"]), 2)
 
     def test_both(self):

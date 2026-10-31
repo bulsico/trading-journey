@@ -20,9 +20,11 @@ combination (at least one):
 ## Use it from Grok Bot
 
 Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo at tag
-`v0.2.0`, run the self-test, pick the language, collect sources (Hyperliquid
+`v0.2.1`, run the self-test, pick the language, collect sources (Hyperliquid
 addresses; Robinhood via the official connector, whose namespace it discovers),
-sync, ask which scope to report on, compute, render the share card, build the
+sync, compute one combined report (with a per-account breakdown when there are
+several accounts; single-account reports on request), render the share card
+(per-account cards on request), build the
 Page from `bot/page-template.tsx`, and write the review
 (`bot/report-template.en.md` or `bot/report-template.zh.md`; background in
 `context/market-context.md`).
@@ -30,7 +32,7 @@ Page from `bot/page-template.tsx`, and write the review
 ## CLI
 
 ```bash
-python3 bin/lsl selftest                                   # 56 synthetic-data tests
+python3 bin/lsl selftest                                   # 65 synthetic-data tests
 
 python3 bin/lsl hl add    --data-dir DATA 0x... [--label NAME]  # validate (0x + 40 hex), dedupe
 python3 bin/lsl hl list   --data-dir DATA                  # tracked addresses (short form)
@@ -44,7 +46,7 @@ python3 bin/lsl sources   --data-dir DATA                  # which sources have 
 
 python3 bin/lsl compute --data-dir DATA [--scope SCOPE] [--lang en|zh]   # -> DATA/out/<scope-slug>/
 python3 bin/lsl page    --data-dir DATA [--scope SCOPE] [--lang en|zh]   # rebuild page.json only
-python3 bin/lsl card    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--period all|90d|30d|7d] [--percent-only] [--png]
+python3 bin/lsl card    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--period all|90d|30d|7d] [--percent-only] [--png] [--per-account]
 python3 bin/lsl purge   --data-dir DATA [--source rh|hl|all] --yes
 python3 bin/lsl hl tokens --unit                           # public spotMeta lookup for the whitelist
 ```
@@ -70,6 +72,33 @@ Labels are masked: `Robinhood Roth IRA …1234`, `0xabcd…1234`. Full account
 numbers never appear in any output. `lsl sources` lists the scopes available.
 A combined scope equals the merge of its parts (tested).
 
+### By account
+
+With two or more accounts (each Robinhood account and each Hyperliquid address
+is one account), the combined report carries a per-account breakdown in
+`summary.json` → `accounts` (rules in `lsl/accounts.py`), shown as the "By
+account" section of the Page and the chat report (hidden for one account):
+
+- Row per account: net P&L incl. funding (and before funding), funding, fees,
+  volume, return on volume (net incl. funding / volume), fills, closed trades,
+  win rate, max drawdown (all-time, from its own profile), best/worst asset
+  group (net after fees; only a positive best and a negative worst), style,
+  share of the combined net P&L (signed, so rows sum to 100%; with mixed signs a
+  row can be negative or above 100%) and active range.
+- Order: |net P&L incl. funding| descending, then label.
+- Reconciliation: dollar fields are rounded to cents by largest remainder so
+  the rows add up to the combined figures to the cent; counts add up exactly
+  (`accounts.reconciliation`, tested). Max drawdown, win rate and return on
+  volume are not additive; funding per row is net incl. funding − net.
+- Insights: *opposing*: an asset group where one account's closed trades are
+  ≥ 55% long and another's ≤ 45% long, each with ≥ 3 closed trades there
+  (options excluded), top 5 by total |net|; *open opposing*: currently held
+  long in one account and short in another; *offsets*: when some accounts made
+  money and others lost: gross gain, gross loss, the share of gains given back,
+  and each loser's own share.
+- TL;DR: one line names the account that carried the result and the one that
+  bled (replacing the best/worst single-trade line).
+
 ### Share card
 
 `lsl card` draws a 1200x675 SVG (byte-identical for the same input): dark
@@ -80,6 +109,14 @@ a stats row (win rate, Sharpe, max drawdown, trades), a cumulative sparkline, an
 `rsvg-convert`, `cairosvg` or `inkscape` it finds; without one it returns an
 install hint and the SVG is still written. The Page embeds the card with period
 and $/% toggles and Download PNG / SVG buttons.
+
+With several accounts the combined card adds "N accounts" to its scope line.
+`--per-account` (scope `all`) also writes `cards/<account-slug>.svg` (+ `.png`)
+for every account, from that account's own profile, liquidations and equity
+curve; it honors `--period` and `--percent-only`, and an account with too little
+data for the period is listed as `skipped` with its `available_periods`. The
+Page offers the same cards through an account picker and a download button on
+each By-account row.
 
 Badge (first rule that matches, on the card's period net P&L and win rate):
 all-time net < 0 with >= 3 liquidated trades → Liquidation Speedrun;

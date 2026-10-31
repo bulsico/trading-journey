@@ -396,7 +396,8 @@
         "tagline": "一笔一笔，慢慢变绿。"
       }
     },
-    "net_pnl_ex_funding": "净盈亏 · 扣手续费，不含 HL 资金费"
+    "net_pnl_ex_funding": "净盈亏 · 扣手续费，不含 HL 资金费",
+    "n_accounts": "%d 个账户"
   },
   "tldr": {
     "headline": "{days} 天里净盈亏 {net}（{start} → {end}），已含手续费和资金费。",
@@ -411,6 +412,46 @@
     "trades_best": "最赚一笔：{best} {best_pnl}。",
     "trades_worst": "最亏一笔：{worst} {worst_pnl}。",
     "headline_1": "{days} 天里净盈亏 {net}（{start} → {end}），已含手续费和资金费。",
-    "win_rate_1": "胜率 {win_rate}，共 {trades} 笔平仓；盈亏比 {payoff}。"
+    "win_rate_1": "胜率 {win_rate}，共 {trades} 笔平仓；盈亏比 {payoff}。",
+    "accounts": "{n} 个账户里，{carry} 扛起了收益（{carry_pnl}），{bleed} 失血最多（{bleed_pnl}）。",
+    "accounts_carry": "{n} 个账户里，{carry} 赚得最多（{carry_pnl}）。",
+    "accounts_bleed": "{n} 个账户里，{bleed} 失血最多（{bleed_pnl}）。"
+  },
+  "accounts": {
+    "heading": "分账户",
+    "caption": "{n} 个账户，合并成一份报告。各行加总与合计分毫不差；净盈亏已含 HL 资金费。",
+    "total": "合计",
+    "col_account": "账户",
+    "col_net": "净盈亏",
+    "col_rov": "成交额回报率",
+    "col_volume": "成交额",
+    "col_trades": "平仓数",
+    "col_win_rate": "胜率",
+    "col_max_dd": "最大回撤",
+    "col_best": "最赚资产",
+    "col_worst": "最亏资产",
+    "col_style": "风格",
+    "col_share": "占总盈亏",
+    "col_period": "活跃区间",
+    "detail_caption": "{venue} · {period} · 资金费前 {net_ex} · 资金费 {funding}",
+    "equity": "累计净盈亏（资金费前）",
+    "download_png": "下载卡片（PNG）",
+    "download_svg": "下载卡片（SVG）",
+    "no_card": "平仓笔数还不够，暂时生成不了卡片。",
+    "opposing_lead": "{symbol}：不同账户方向相反",
+    "opposing_body": "做多：{long}；做空：{short}。",
+    "side_item": "{label}（{trades} 笔，{net}）",
+    "open_lead": "{symbol}：当前一边多一边空",
+    "open_body": "做多：{long}；做空：{short}。",
+    "offset_lead": "亏损账户吐回了 {given_back} 的盈利",
+    "offset_body": "{winners} 赚了 {gain}；{losers} 亏了 {loss}。",
+    "loser_share": "{label}：吃掉盈利的 {share}",
+    "shared": "有 {n} 个资产在不止一个账户里交易过。",
+    "none": "账户之间没有冲突：没有资产在不同账户反向交易，也没有账户抵消另一个账户。",
+    "picker": "卡片范围",
+    "all_accounts": "全部账户",
+    "list_sep": "、",
+    "clause_sep": "；",
+    "with_shares": "{body}{shares}"
   }
 }

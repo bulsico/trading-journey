@@ -22,7 +22,7 @@ import math
 import os
 from collections import defaultdict
 
-from . import assets, fifo, page, persona, rhmodel
+from . import accounts as accounts_mod, assets, fifo, page, persona, rhmodel
 from .util import F, UTC, et_day, et_wall_to_utc, iso, r2, r4, read_json, to_utc, write_json
 
 SCHEMA = 1
@@ -765,7 +765,9 @@ asset_mod = assets
 
 
 def compute_all(rh, hl, lang="zh"):
+    from . import scope as scope_mod
     trades, acts, scopes, funding = [], [], {}, 0.0
+    accts = []
     dq = {"schema": SCHEMA, "rh": None, "hl": None, "checks": []}
     open_rh, perps, spots = [], [], []
     as_of = None
@@ -780,6 +782,10 @@ def compute_all(rh, hl, lang="zh"):
             dq["rh"]["accounts"].append(adq)
             if t or f:
                 scopes["rh." + a["tag"]] = (t, f, 0.0)
+                labels = {l: scope_mod.rh_label(a, l) for l in ("en", "zh")}
+                accts.append({"key": "rh." + a["tag"], "id": "rh:" + a["tag"], "venue": "rh",
+                              "labels": labels, "label": labels.get(lang, labels["en"]),
+                              "trades": t, "acts": f, "funding": 0.0})
         rt = [x for x in trades if x["src"] == "rh"]
         scopes["rh"] = (rt, [x for x in acts if x["src"] == "rh"], 0.0)
     if isinstance(hl, dict):
@@ -799,6 +805,13 @@ def compute_all(rh, hl, lang="zh"):
             hdqs.append(dict(hdq, tag=tag, label=h.get("label", tag)))
             if multi:
                 scopes["hl." + tag] = (t, f, fund)
+            if t or f:
+                # nickname / short 0xabcd…1234; a legacy single-address layout has no address on file
+                lab = (h.get("label") or h["short"]) if h.get("short") else "Hyperliquid"
+                accts.append({"key": ("hl." + tag) if multi else "hl",
+                              "id": ("hl:" + (h.get("short") or h.get("fingerprint") or tag)) if h.get("short") or multi
+                              else "hl", "venue": "hl", "labels": {"en": lab, "zh": lab}, "label": lab,
+                              "trades": t, "acts": f, "funding": fund})
             ms_ = (h.get("info") or {}).get("as_of_ms")
             if ms_:
                 hl_asof = iso(dt.datetime.fromtimestamp(ms_ / 1000.0, UTC))
@@ -821,9 +834,12 @@ def compute_all(rh, hl, lang="zh"):
     groups, gq = asset_mod.groups(trades, acts)
     dq["asset_grouping"] = gq
     months = by_month(trades, acts)
+    profs = profiles(scopes, trades, acts, funding, as_of)
+    for a in accts:
+        a["slug"] = scope_mod.slug(a["id"])
     summary = {
         "schema": SCHEMA, "as_of": as_of, "lang": lang,
-        "profile": profiles(scopes, trades, acts, funding, as_of),
+        "profile": profs,
         "sources": {"rh": bool(rh), "hl": bool(hl)},
         "hl_addresses": [{"tag": d["tag"], "label": d["label"]} for d in (dq["hl"] or {}).get("addresses", [])]
         if multi else [],
@@ -865,6 +881,7 @@ def compute_all(rh, hl, lang="zh"):
     open_pos = {"schema": SCHEMA, "as_of": as_of,
                 "rh": sorted(open_rh, key=lambda p: (p["acct"], p["cls"], str(p["sym"]), str(p.get("expiration")))),
                 "hl_perp": perps, "hl_spot": sorted(spots, key=lambda s: (str(s["coin"]), s["acct"]))}
+    summary["accounts"] = accounts_mod.build(accts, overall, profs, open_pos)
     dq["checks"] = _checks(dq)
     dq["pass"] = all(c["pass"] for c in dq["checks"] if c["required"])
     return {"summary.json": summary, "series.json": series, "open_positions.json": open_pos,
@@ -872,13 +889,12 @@ def compute_all(rh, hl, lang="zh"):
 
 
 def profiles(scopes, trades, acts, funding, as_of):
-    """Trader profile per top-level scope: all, rh, hl (and hl.<label> with several addresses)."""
+    """Trader profile for all, rh, hl and every account (rh.<tag>, hl.<tag> with several addresses)."""
     from . import profile as P
     day = as_of[:10] if as_of else None
     out = {"all": P.profile(trades, acts, funding, day)}
     for k in sorted(scopes):
-        if k in ("rh", "hl") or k.startswith("hl."):
-            out[k] = P.profile(*scopes[k], day)
+        out[k] = P.profile(*scopes[k], day)
     return out
 
 

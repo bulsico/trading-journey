@@ -13,7 +13,8 @@ the bot never computes a number itself.
 - TL;DR：`page.json` → `tldr`（3-5 行，原样照抄，不改数字）
 - 分析范围：`summary.scope.label`（例如「全部账户」「Robinhood Roth IRA …1234」「0xabcd…1234」）；`summary.sources`（rh / hl）；Hyperliquid 地址只用 `summary.hl_addresses[].label`（短地址或用户起的名字）
 - 交易者档案：`page.json` → `profile.by[profile.default]`：`facts[]`（最长连胜、持仓时长、交易风格、盈亏层级、仓位体量、多空偏好，`value` 已含 emoji）、`strip_display`（最近 50 笔 🟩/🟥）、`periods`（7D/30D/90D/ALL 的净盈亏、最大回撤、胜率、Sharpe、Sortino、成交额、笔数；`-` 表示数据不足）。原始数值在 `summary.profile.{all,rh,hl}`
-- 分享卡：`bin/lsl card --scope <scope> --lang zh --png` 生成的 `share-card.png`（或 `.svg`），附在报告里
+- 分享卡：`bin/lsl card --scope <scope> --lang zh --png` 生成的 `share-card.png`（或 `.svg`），附在报告里。分账户卡片（`--per-account`）只在用户要的时候生成
+- 分账户（仅当 `summary.accounts.count` > 1）：`page.json` → `accounts.rows[]`，按原顺序（`label`、`net_display`、`share_display`、`rov_display`、`volume_display`、`trades`、`win_rate_display`、`max_dd_display`、`best_display`、`worst_display`、`style_display`、`period_display`），`accounts.total`，`accounts.insights[]`（`lead`、`body`），`accounts.none`，`accounts.shared_display`。原始数值和规则见 `summary.accounts`（`rows`、`totals`、`reconciliation`、`insights`）
 
 - 基本档案：`overall.period.{from,to,days}`、`overall.fills`、`overall.unique_assets`、`overall.liquidations`
 - 交易统计：`overall.win_rate`、`overall.avg_win`、`overall.avg_loss`、`overall.profit_factor_ratio`、`overall.net_pnl`
@@ -53,6 +54,19 @@ the bot never computes a number itself.
 {page.json 的 tldr，每行一条，原样照抄}
 
 {附上分享卡图片}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{仅当 accounts.count > 1；否则整节跳过：}
+## 🗂️ 分账户
+
+| 账户 | 净盈亏 | 占总盈亏 | 成交额回报率 | 平仓数 | 胜率 | 风格 |
+|------|------|------|------|------|------|------|
+{accounts.rows 每个账户一行，按原顺序，展示字段原样照抄；最后一行是 accounts.total}
+
+{accounts.insights 每条写成「**{lead}**：{body}」，原样照抄；没有的话写 accounts.none}
+
+{1-2 句：哪个账户扛起了结果、哪个账户在失血，账户之间有没有互相打架（反向下注）；只做解读，数字全部照抄表格}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

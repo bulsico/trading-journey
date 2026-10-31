@@ -22,8 +22,8 @@ rasterizer for the PNG share card (see step 5).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.0 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.0 2>/dev/null; git checkout -q v0.2.0
+[ -d $REPO/.git ] || git clone --branch v0.2.1 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.1 2>/dev/null; git checkout -q v0.2.1
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```
@@ -101,16 +101,22 @@ dir; pass it again whenever `GetDynamicTools` returns a different one.
 
 ## 4. Scope, then compute
 
-After syncing, ask which scope to report on, listing the `scopes` from
-`lsl sources` by label (default: everything combined):
+After syncing, do not ask about scope: build ONE combined report (`all`). With
+several accounts (Robinhood accounts and/or Hyperliquid addresses) it already
+holds a per-account breakdown ("By account": each account's net, share of the
+total, return on volume, trades, win rate, drawdown, best/worst asset, style,
+plus cross-account callouts such as opposite bets on the same asset or losing
+accounts giving back the winners' gains). Rows add up to the combined totals to
+the cent. Mention once that a report for a single account is available too.
+Other scopes, only when the user asks (listed as `scopes` by `lsl sources`):
 
 - `all`: every source combined (default)
 - `rh`: Robinhood only; `rh:<account>`: one Robinhood account (`rh:a0`, or its last 4 digits)
 - `hl`: all Hyperliquid addresses; `hl:<address>`: one address (full or short form)
 
 Labels are masked (`Robinhood Roth IRA …1234`, `0xabcd…1234`); never show a full
-account number or put one in the Page. If the user does not care, use `all`.
-Generate other scopes later on request; each scope writes its own folder
+account number or put one in the Page.
+Generate other scopes on request; each scope writes its own folder
 `$DATA/out/<scope-slug>/` (e.g. `out/all`, `out/rh-a1`, `out/hl-0xabcd-1234`), so
 scopes coexist. Raw data is shared and fetched once; the scope only filters what
 is computed.
@@ -126,11 +132,11 @@ harmless and byte-identical.) It writes, byte-identical for the same input:
 
 | file | use |
 |---|---|
-| `summary.json` | every number in the chat report: `overall`, `scopes`, `persona`, `profile`, best/worst trades, assets, months, `approximate`, `scope` |
+| `summary.json` | every number in the chat report: `overall`, `scopes`, `accounts` (per-account rows, totals, reconciliation, insights), `persona`, `profile`, best/worst trades, assets, months, `approximate`, `scope` |
 | `series.json` | chart data, per-asset totals, `asset_groups` (cross-venue) |
 | `open_positions.json` | `hl_perp`, `hl_spot`, `rh` positions and flags |
 | `data_quality.json` | `pass`, `checks[]` (`required` flag), RH coverage, gain sources, reconciliation, grouping |
-| `page.json` | the Page payload, already in `$LANG_`: `tldr`, `profile`, `card`, `has`, pre-formatted `*_display` strings, chart series |
+| `page.json` | the Page payload, already in `$LANG_`: `tldr`, `accounts`, `profile`, `card`, `has`, pre-formatted `*_display` strings, chart series |
 
 Read `data_quality.json` first. If `pass` is false, tell the user which required
 check failed and that numbers may be incomplete. Optional failures are worth one
@@ -158,6 +164,20 @@ attach the SVG instead and tell the user once how to get PNGs
 `pip install cairosvg`). `--percent-only` hides dollar amounts (return on volume
 and win rate only); offer it when the user wants to share without amounts. If a period has too little data the result is an error listing
 `available_periods`; pick one of those. The card never shows an account number.
+
+With several accounts the combined card says "N accounts" on its scope line.
+After the report, attach the combined card and offer per-account cards ("want a
+card for just one wallet or account?"). On request:
+
+```bash
+python3 bin/lsl card --data-dir $DATA --scope all --lang $LANG_ --per-account [--period ...] [--percent-only] --png
+```
+
+This also writes `$OUT/cards/<account-slug>.svg` (+ `.png`) for every account,
+in By-account order; the result's `cards[]` lists each one (`label`, `svg`,
+`png`), or `skipped` with that account's `available_periods` when it has too
+little data for the period. Attach only the card(s) the user asked for. The
+Page has the same cards behind an account picker and on each By-account row.
 
 ## 6. Build the Page
 
@@ -187,15 +207,20 @@ Read your Pages (canvas) skill before the first `WriteCanvas`.
 
 The template adapts to the sources by itself (`D.has`): sections for a missing
 source are hidden, Robinhood-only pages show no funding or HL sections, and
-multi-address pages get one profile tab per address. It opens with the TL;DR,
-the share card (period and $/% toggles, Download PNG / Download SVG), and the
-trader profile ($/% toggle, venue selector, 7D/30D/90D/All table). The Page is
+with two or more accounts a "By account" section shows the account table,
+cross-account callouts and one expandable detail per account (equity
+sparkline, profile stats, card download); it is hidden for a single account.
+It opens with the TL;DR, the share card (account picker when there are several
+accounts, period and $/% toggles, Download PNG / Download SVG), and the trader
+profile ($/% toggle, venue selector, 7D/30D/90D/All table). The Page is
 private to the user, so real tickers and amounts are fine there.
 
 ## 7. Chat report
 
 Open with the TL;DR: the lines of `page.json` → `tldr`, verbatim (3 to 5
-lines, already in `$LANG_`). Then follow the template for the language exactly:
+lines, already in `$LANG_`; with several accounts one line names the account
+that carried the result and the one that bled). The "By account" section
+follows when there is more than one account. Then follow the template for the language exactly:
 
 - Chinese: `bot/report-template.zh.md`
 - English: `bot/report-template.en.md`

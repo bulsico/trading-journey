@@ -19,7 +19,9 @@ It is kept between runs so later runs sync incrementally; `--run` is an alias.
                  DATA/out/<scope-slug>/ unless --out is given
   lsl page       [--out DIR | --data-dir DATA --scope SCOPE] [--lang en|zh]   rebuild page.json
   lsl card       [--out DIR | --data-dir DATA --scope SCOPE] [--period all|90d|30d|7d]
-                 [--percent-only] [--lang en|zh] [--png]   share card SVG (+PNG)
+                 [--percent-only] [--lang en|zh] [--png] [--per-account]
+                                                     share card SVG (+PNG); --per-account adds
+                                                     cards/<account-slug>.svg per account
   lsl purge      [--data-dir DATA] [--source rh|hl|all] [--yes]  wipe stored account data
   lsl selftest
 """
@@ -115,6 +117,8 @@ def main(argv=None):
     cd.add_argument("--period", default="all", choices=["all", "90d", "30d", "7d"])
     cd.add_argument("--percent-only", action="store_true", help="hide dollar amounts")
     cd.add_argument("--png", action="store_true", help="also rasterize to PNG if a converter is installed")
+    cd.add_argument("--per-account", action="store_true",
+                    help="also one card per account (several accounts) into <out>/cards/<account-slug>.svg")
     so = sub.add_parser("sources")
     _data(so)
     pu = sub.add_parser("purge")
@@ -183,7 +187,8 @@ def main(argv=None):
         return 1 if "error" in res else 0
     if a.cmd == "card":
         from . import card
-        res = card.run(_scope_out(a), period=a.period, percent_only=a.percent_only, png=a.png, lang=a.lang)
+        res = card.run(_scope_out(a), period=a.period, percent_only=a.percent_only, png=a.png, lang=a.lang,
+                       per_account_cards=a.per_account)
         sys.stdout.write(dumps(res))
         return 1 if "error" in res else 0
     if a.cmd == "sources":

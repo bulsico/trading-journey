@@ -612,6 +612,102 @@ def _scopes(sm, dq):
     return rows
 
 
+ACCT_SPARK_POINTS = 60
+
+
+def _acct_spark(se, key):
+    rows = (se.get("cumulative") or {}).get(key) or []
+    if len(rows) > ACCT_SPARK_POINTS:
+        n = len(rows)
+        rows = [rows[int(round(i * (n - 1) / (ACCT_SPARK_POINTS - 1)))] for i in range(ACCT_SPARK_POINTS)]
+    vals = [k(r["cumulative"]) for r in rows]
+    return dict(axis(vals), labels=[r["day"] for r in rows], values=vals, unit="K")
+
+
+def _accounts(sm, se, lang):
+    """By-account section (only with two or more accounts): display rows, a totals row,
+    per-account detail (equity sparkline in $K, profile facts) and insight callouts."""
+    from . import report
+    A = sm.get("accounts") or {}
+    T = persona.labels(lang)["accounts"]
+    PL = persona.labels(lang)["profile"]
+    if (A.get("count") or 0) < 2:
+        return {"show": False, "count": A.get("count") or 0, "rows": [], "total": None, "insights": [],
+                "shared_display": None, "labels": T}
+
+    def lab(r):
+        return (r.get("labels") or {}).get(lang) or r["label"]
+
+    def asset(x):
+        return "%s %s" % (x["symbol"], money(x["net_pnl"], True)) if x else "-"
+
+    rows = []
+    for r in A["rows"]:
+        prof = (sm.get("profile") or {}).get(r["key"])
+        one = report._one(prof, lang) if prof else None
+        style = next((f["value"] for f in (one or {}).get("facts", []) if f["id"] == "style"), "-")
+        period = _("%s to %s") % (r["period"]["from"], r["period"]["to"]) if r["period"]["from"] else "-"
+        rows.append({
+            "key": r["key"], "slug": r["slug"], "label": lab(r), "venue": SRC_LABELS[r["venue"]],
+            "net_display": money(r["net_pnl_incl_funding"], True), "net_k_display": money_k(r["net_pnl_incl_funding"], True),
+            "tone": tone(r["net_pnl_incl_funding"]),
+            "net_ex_funding_display": money(r["net_pnl"], True), "funding_display": money(r["funding"], True),
+            "rov_display": pct(r["return_on_volume"], 2) if r["return_on_volume"] is not None else "-",
+            "volume_display": money_k(r["volume"]), "trades": num(r["closed_trades"]),
+            "win_rate_display": pct(r["win_rate"]) if r["win_rate"] is not None else "-",
+            "max_dd_display": money(r["max_drawdown"]) if r["max_drawdown"] else "$0.00",
+            "best_display": asset(r["best_asset"]), "worst_display": asset(r["worst_asset"]),
+            "style_display": style, "share_display": pct(r["share_of_total"]) if r["share_of_total"] is not None else "-",
+            "period_display": period,
+            "caption": T["detail_caption"].format(venue=SRC_LABELS[r["venue"]], period=period,
+                                                  net_ex=money(r["net_pnl"], True), funding=money(r["funding"], True)),
+            "spark": _acct_spark(se, r["key"]),
+            "facts": [{"label": f["label"], "value": f["value"]} for f in (one or {}).get("facts", [])],
+            "strip_display": (one or {}).get("strip_display") or "",
+            "strip_label": (one or {}).get("strip_label") or PL["no_trades"],
+        })
+    t = A["totals"]
+    total = {"label": T["total"], "net_display": money(t["net_pnl_incl_funding"], True),
+             "tone": tone(t["net_pnl_incl_funding"]), "volume_display": money_k(t["volume"]),
+             "rov_display": pct(t["net_pnl_incl_funding"] / t["volume"], 2) if t["volume"] else "-",
+             "trades": num(t["closed_trades"]), "win_rate_display": pct(t["win_rate"]) if t["closed_trades"] else "-",
+             "share_display": pct(1.0) if abs(t["net_pnl_incl_funding"]) >= 0.005 else "-"}
+    ins = []
+    I = A.get("insights") or {}
+    lm = {r["key"]: lab(r) for r in A["rows"]}
+
+    def L(x):
+        return lm.get(x["key"], x["label"])
+
+    LS, CS = T["list_sep"], T["clause_sep"]
+
+    def side(xs):
+        return LS.join(T["side_item"].format(label=L(x), trades=num(x["closed_trades"]),
+                                               net=money(x["net_pnl"], True)) for x in xs)
+    for o in I.get("opposing") or []:
+        ins.append({"kind": "opposing", "tone": "warning", "lead": T["opposing_lead"].format(symbol=o["symbol"]),
+                    "body": T["opposing_body"].format(long=side(o["long"]), short=side(o["short"]))})
+    for o in I.get("open_opposing") or []:
+        ins.append({"kind": "open_opposing", "tone": "info", "lead": T["open_lead"].format(symbol=o["symbol"]),
+                    "body": T["open_body"].format(long=LS.join(L(x) for x in o["long"]),
+                                                 short=LS.join(L(x) for x in o["short"]))})
+    off = I.get("offsets")
+    if off:
+        body = T["offset_body"].format(
+            winners=LS.join(L(x) for x in off["winners"]),
+            gain=money(off["gross_gain"], True),
+            losers=LS.join(L(x) for x in off["losers"]),
+            loss=money(off["gross_loss"], True))
+        shares = CS.join(T["loser_share"].format(label=L(x), share=pct(x["share_of_gains"])) for x in off["losers"])
+        ins.append({"kind": "offsets", "tone": "danger" if off["given_back"] >= 1 else "warning",
+                    "lead": T["offset_lead"].format(given_back=pct(off["given_back"])),
+                    "body": T["with_shares"].format(body=body, shares=shares)})
+    return {"show": True, "count": A["count"], "rows": rows, "total": total, "insights": ins,
+            "none": T["none"] if not ins else None,
+            "shared_display": T["shared"].format(n=num(I["shared_assets"])) if I.get("shared_assets") else None,
+            "caption": T["caption"].format(n=num(A["count"])), "labels": T}
+
+
 def build(sm, se, op, dq, lang="en"):
     from . import card as card_mod, report
     set_lang(lang)
@@ -648,6 +744,8 @@ def build(sm, se, op, dq, lang="en"):
     }
     page["has"]["rh_coverage"] = bool(page["data_quality"]["rh_coverage_start"])
     page["has"]["multi_line"] = bool(lines)
+    page["accounts"] = _accounts(sm, se, lang)
+    page["has"]["accounts"] = page["accounts"]["show"]
     page["profile"] = report.profile_block(sm, lang)
     page["card"] = card_mod.page_block(sm, se, lang)
     page["tldr"] = report.tldr(sm, page, lang)
