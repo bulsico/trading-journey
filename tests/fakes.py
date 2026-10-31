@@ -67,12 +67,34 @@ def option_order(rng, t, sym, option_id, exp, side, effect, qty, px):
                       "executions": [{"timestamp": _ts(t), "quantity": "%g" % qty, "price": "%.2f" % px}]}]}
 
 
+def synth_close(sym, day):
+    """Deterministic synthetic daily close for (symbol, ISO day): a slow trend plus waves."""
+    import math
+    n = (dt.date.fromisoformat(day) - dt.date(2020, 1, 1)).days
+    seed = sum(ord(c) for c in str(sym)) % 17
+    return round(100 * math.exp(0.0015 * n * (1 if seed % 2 else -0.5) + 0.25 * math.sin((n + seed) / 45.0))
+                 + 3 * math.sin(n * 1.7 + seed), 4)
+
+
+def rh_bars(sym, start, end):
+    out, x = [], dt.date.fromisoformat(start[:10])
+    e = dt.date.fromisoformat(end[:10])
+    while x < e:
+        if x.weekday() < 5:
+            c = synth_close(sym, x.isoformat())
+            out.append({"begins_at": x.isoformat() + "T00:00:00Z", "open_price": "%.6f" % c,
+                        "close_price": "%.6f" % c, "high_price": "%.6f" % (c * 1.01),
+                        "low_price": "%.6f" % (c * 0.99), "volume": 1000000 + x.day, "session": "reg"})
+        x += dt.timedelta(days=1)
+    return out
+
+
 class FakeRH:
     """Serves get_* calls from in-memory datasets with byte-limit truncation."""
 
     def __init__(self, orders, limit=4000, page=100, crypto_na=True, hist=None,
                  fail=None, mangle=None, positions=None, option_contracts=None, uni_limit=None,
-                 pnl_from=None, accounts=None):
+                 pnl_from=None, accounts=None, bars_limit=20000, unknown_symbols=()):
         self.accounts = accounts or [{"account_number": "TESTACCT1", "rhs_account_number": "RHS1",
                                       "brokerage_account_type": "individual"}]
         self.orders = orders          # {(account_number, cls): [order]}
@@ -85,6 +107,8 @@ class FakeRH:
         self.option_contracts = option_contracts or []
         self.uni_limit = uni_limit
         self.pnl_from = pnl_from      # RH realized-P&L coverage starts this month
+        self.bars_limit = bars_limit  # the connector gateway keeps ~20 KB of a result
+        self.unknown_symbols = set(unknown_symbols)
         self.calls = []
 
     def _render(self, data, list_key=None, limit=None):
@@ -152,6 +176,13 @@ class FakeRH:
                     first["account_number"], first["rhs_account_number"]):
                 return self._render({"results": [], "next": None}, limit=10 ** 7)
             return self._render({"results": self.positions.get(cls, []), "next": None}, limit=10 ** 7)
+        if tool == "get_equity_historicals":
+            res = [{"symbol": sy, "interval": "day", "bounds": "regular",
+                    "bars": rh_bars(sy, args["start_time"], args.get("end_time") or "2100-01-01")}
+                   for sy in args["symbols"] if sy not in self.unknown_symbols]
+            if not res:
+                return "Error: symbol not found\n"
+            return self._render({"results": res}, limit=self.bars_limit)
         raise AssertionError(tool)
 
 
@@ -178,7 +209,9 @@ def drive(run_dir, server, max_rounds=3000, max_calls=8, now="2026-01-01T00:00:0
 class FakeHL:
     """Hyperliquid info API with page limits; fills may share timestamps."""
 
-    def __init__(self, fills, funding=(), ledger=(), page=2000, fund_page=500, spot_meta=None, ch=None):
+    def __init__(self, fills, funding=(), ledger=(), page=2000, fund_page=500, spot_meta=None, ch=None,
+                 missing_coins=()):
+        self.missing_coins = set(missing_coins)
         self.fills = sorted(fills, key=lambda f: (f["time"], f["tid"]))
         self.funding, self.ledger = list(funding), list(ledger)
         self.page, self.fund_page = page, fund_page
@@ -199,6 +232,21 @@ class FakeHL:
             return sel[:self.fund_page]
         if t == "spotMeta":
             return self.spot_meta
+        if t == "candleSnapshot":
+            from lsl import candles
+            r = body["req"]
+            if r["coin"] in self.missing_coins:
+                raise candles.Missing()
+            out, x = [], dt.datetime.fromtimestamp(r["startTime"] / 1000, UTC).date()
+            while True:
+                ms = int(dt.datetime.combine(x, dt.time(), UTC).timestamp() * 1000)
+                if ms > r["endTime"]:
+                    break
+                c = synth_close(r["coin"], x.isoformat())
+                out.append({"t": ms, "T": ms + 86399999, "s": r["coin"], "i": "1d", "o": str(c), "c": str(c),
+                            "h": str(c), "l": str(c), "v": "1.0", "n": 1})
+                x += dt.timedelta(days=1)
+            return out[:5000]
         if t == "clearinghouseState":
             return self.ch.get(body.get("dex", "main"), {"assetPositions": []})
         if t == "spotClearinghouseState":

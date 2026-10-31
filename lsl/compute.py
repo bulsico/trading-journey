@@ -22,7 +22,7 @@ import math
 import os
 from collections import defaultdict
 
-from . import accounts as accounts_mod, assets, fifo, page, persona, rhmodel
+from . import accounts as accounts_mod, assets, fifo, page, persona, rhmodel, trend as trend_mod
 from .util import F, UTC, et_day, et_wall_to_utc, iso, r2, r4, read_json, to_utc, write_json
 
 SCHEMA = 1
@@ -764,7 +764,26 @@ def _public(st):
 asset_mod = assets
 
 
-def compute_all(rh, hl, lang="zh"):
+def trades_and_as_of(rh, hl):
+    """Closed-trade records and the data as_of (the same ones compute_all uses), for candles."""
+    trades, as_of = [], None
+    if rh:
+        as_of = rh["sync_end"]
+        for a in rh["accounts"]:
+            trades += rh_account(a, rh["sync_end"])[0]
+    if isinstance(hl, dict):
+        hl = [dict(hl, tag="hl", label="hl", fingerprint="")]
+    for h in hl or []:
+        trades += hl_process(h, acct=h.get("tag", "hl"))[0]
+        ms_ = (h.get("info") or {}).get("as_of_ms")
+        if ms_:
+            hl_asof = iso(dt.datetime.fromtimestamp(ms_ / 1000.0, UTC))
+            as_of = max(as_of, hl_asof) if as_of else hl_asof
+    trades.sort(key=_trade_key)
+    return trades, as_of
+
+
+def compute_all(rh, hl, lang="zh", candles=None):
     from . import scope as scope_mod
     trades, acts, scopes, funding = [], [], {}, 0.0
     accts = []
@@ -828,7 +847,8 @@ def compute_all(rh, hl, lang="zh"):
     trades.sort(key=_trade_key)
     acts.sort(key=lambda f: (f["ts"], f["src"], f["acct"], f["cls"], str(f["sym"]), f["fee"]))
     overall = stats(trades, acts, funding)
-    pers = persona.persona(overall["_persona_in"], lang)
+    trend, trend_rows = trend_mod.build(trades, candles or {}, accts)
+    pers = persona.persona(overall["_persona_in"], lang, trend=trend)
     best, worst = best_worst(trades)
     assets = by_asset(trades, acts)
     groups, gq = asset_mod.groups(trades, acts)
@@ -846,6 +866,7 @@ def compute_all(rh, hl, lang="zh"):
         "overall": _public(overall),
         "scopes": {k: _public(stats(*v)) for k, v in sorted(scopes.items())},
         "persona": pers,
+        "trend": trend,
         "best_trades": best[:5], "worst_trades": worst[:5],
         "by_asset_worst": assets[:5], "by_asset_best": list(reversed(assets[-5:])),
         "asset_groups": {"count": len(groups), "multi_venue": gq["multi_venue_groups"],
@@ -868,6 +889,7 @@ def compute_all(rh, hl, lang="zh"):
         "activity": {"weekday": weekday_activity(acts)},
         "holding_times": holding_buckets(trades),
         "best_trades": best, "worst_trades": worst,
+        "trend_entries": trend_rows,
     }
     hist_by = {(r["src"], r["asset"]): r for r in assets}
     for p in perps:
@@ -882,6 +904,8 @@ def compute_all(rh, hl, lang="zh"):
                 "rh": sorted(open_rh, key=lambda p: (p["acct"], p["cls"], str(p["sym"]), str(p.get("expiration")))),
                 "hl_perp": perps, "hl_spot": sorted(spots, key=lambda s: (str(s["coin"]), s["acct"]))}
     summary["accounts"] = accounts_mod.build(accts, overall, profs, open_pos)
+    for row in summary["accounts"]["rows"]:
+        row["trend"] = (trend.get("by_account") or {}).get(row["key"])
     dq["checks"] = _checks(dq)
     dq["pass"] = all(c["pass"] for c in dq["checks"] if c["required"])
     return {"summary.json": summary, "series.json": series, "open_positions.json": open_pos,
@@ -996,7 +1020,8 @@ def run(run_dir, out_dir=None, lang="zh", scope="all"):
         return res
     rh, hl, meta = res
     out_dir = out_dir or os.path.join(run_dir, "out", meta["slug"])
-    docs = compute_all(rh, hl, lang)
+    from . import candles as candles_mod
+    docs = compute_all(rh, hl, lang, candles=candles_mod.load_all(run_dir))
     docs["summary.json"]["scope"] = meta
     docs["page.json"] = page.build(docs["summary.json"], docs["series.json"],
                                    docs["open_positions.json"], docs["data_quality.json"], lang)

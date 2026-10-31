@@ -49,8 +49,29 @@ def scores(fpd, win_rate, avg_win, avg_abs_loss, unique_assets, concentration,
     }
 
 
-def archetype(sc, win_rate, net, avg_win, avg_abs_loss):
-    if sc["trend_master"] >= 65 and net > 0:
+# Trend data (lsl/trend.py) replaces the win-rate proxies when at least
+# trend.MIN_TAGGED closed trades carry an SMA tag ("trend_basis": "sma"):
+# * trend_awareness = round(10 * with-trend share of tagged closed trades);
+# * TREND_MASTER    = with-trend share >= 0.65, with-trend P&L > 0 and net > 0;
+# * TREND_AWAKENING = counter-trend P&L < 0, counter-trend share >= 0.2 and the
+#                     with-trend average P&L beats the counter-trend average.
+# Otherwise the original formulas below are used ("trend_basis": "formula").
+TM_WITH_SHARE = 0.65
+AWAKENING_COUNTER_SHARE = 0.2
+
+
+def trend_usable(tr):
+    from .trend import MIN_TAGGED
+    return bool(tr) and tr.get("status") == "ok" and (tr.get("tagged") or 0) >= MIN_TAGGED
+
+
+def archetype(sc, win_rate, net, avg_win, avg_abs_loss, tr=None):
+    use = trend_usable(tr)
+    if use:
+        w, c = tr["by_alignment"]["with"], tr["by_alignment"]["counter"]
+        if tr["with_share"] >= TM_WITH_SHARE and w["pnl"] > 0 and net > 0:
+            return "TREND_MASTER", []
+    elif sc["trend_master"] >= 65 and net > 0:
         return "TREND_MASTER", []
     cands = [("OVERTRADE", sc["overtrade"]), ("KNIFE_CATCHER", sc["knife_catcher"]),
              ("SCATTER_GUN", sc["scatter_gun"]), ("PANIC_TRADER", sc["panic_trader"]),
@@ -62,17 +83,23 @@ def archetype(sc, win_rate, net, avg_win, avg_abs_loss):
         mods.append("STOP_LOSS_PHOBIA")
     if sc["overtrade"] > 50 and primary != "OVERTRADE":
         mods.append("AVERAGING_DOWN")
-    if win_rate > 0.5 and net < 0:
+    if use:
+        if (c["pnl"] < 0 and tr["counter_share"] >= AWAKENING_COUNTER_SHARE
+                and (w["avg_pnl"] if w["avg_pnl"] is not None else 0.0) > c["avg_pnl"]):
+            mods.append("TREND_AWAKENING")
+    elif win_rate > 0.5 and net < 0:
         mods.append("TREND_AWAKENING")
     return primary, mods
 
 
-def ratings(sc, win_rate, avg_win, avg_abs_loss):
+def ratings(sc, win_rate, avg_win, avg_abs_loss, tr=None):
+    ta = (_jsround(min(10.0, 10 * tr["with_share"])) if trend_usable(tr)
+          else _jsround(min(10.0, win_rate * 10 + (2 if avg_win > avg_abs_loss else 0))))
     return {
         "patience": _jsround(max(0.0, 10 - sc["overtrade"] / 12.0)),
         "fomo_resistance": _jsround(max(0.0, 10 - (sc["overtrade"] + sc["panic_trader"]) / 20.0)),
         "stop_loss_discipline": _jsround(max(0.0, 10 - sc["knife_catcher"] / 12.0)),
-        "trend_awareness": _jsround(min(10.0, win_rate * 10 + (2 if avg_win > avg_abs_loss else 0))),
+        "trend_awareness": ta,
         "resilience": _jsround(min(10.0, win_rate * 8 + (2 if sc["trend_master"] > 50 else 0))),
     }
 
@@ -97,7 +124,7 @@ def labels(lang):
         return json.load(f)
 
 
-def persona(st, lang="zh"):
+def persona(st, lang="zh", trend=None):
     """st: dict with fills, closed, fpd, win_rate, avg_win, avg_loss (<=0),
     unique_assets, concentration, liq_rate, monthly_fill_counts, net."""
     L = labels(lang)
@@ -111,8 +138,8 @@ def persona(st, lang="zh"):
         aal = abs(st["avg_loss"])
         sc = scores(st["fpd"], st["win_rate"], st["avg_win"], aal, st["unique_assets"],
                     st["concentration"], st["liq_rate"], volatility(st["monthly_fill_counts"]))
-        code, mods = archetype(sc, st["win_rate"], st["net"], st["avg_win"], aal)
-        rt = ratings(sc, st["win_rate"], st["avg_win"], aal)
+        code, mods = archetype(sc, st["win_rate"], st["net"], st["avg_win"], aal, trend)
+        rt = ratings(sc, st["win_rate"], st["avg_win"], aal, trend)
         g = grade(st["win_rate"], st["net"], st["liq_rate"])
     return {
         "archetype": code, "archetype_label": L["archetypes"][code],
@@ -120,4 +147,5 @@ def persona(st, lang="zh"):
         "scores": sc, "ratings": rt,
         "grade": g, "grade_label": L["grades"][g],
         "rating_labels": L["ratings"],
+        "trend_basis": "sma" if trend_usable(trend) and st.get("fills") and st.get("closed") else "formula",
     }

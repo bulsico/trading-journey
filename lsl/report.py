@@ -183,10 +183,29 @@ def tldr(sm, page, lang):
         lines.append(T["trades_worst"].format(worst=wt[0]["sym"], worst_pnl=money(wt[0]["pnl"], True)))
     lines.append(T["win_rate_1" if o["closed_trades"] == 1 else "win_rate"].format(win_rate=pct(o["win_rate"]), trades=num(o["closed_trades"]),
                                       payoff=num(o["profit_factor_ratio"], 2)))
+    tl = trend_line(sm, lang)
+    if tl:
+        lines.append(tl)
     bd = ((page.get("card") or {}).get("badges") or {}).get("all") or {}
     per = page["persona"]
     verdict = T["verdict"].format(archetype=per["archetype_label"], grade=per["grade"], grade_label=per["grade_label"])
     if bd.get("name"):
         verdict += " " + T["verdict_badge"].format(badge=bd["name"], tagline=bd["tagline"])
     lines.append(verdict)
-    return lines[:5]
+    return lines[:6]
+
+
+def trend_line(sm, lang):
+    """One TLDR line when trend discipline is notable (trend.notable codes), else None."""
+    from .page import trend_vars
+    tr = sm.get("trend") or {}
+    codes = tr.get("notable") or []
+    if tr.get("status") != "ok" or not codes:
+        return None
+    T = labels(lang)["tldr"]
+    V = trend_vars(tr)
+    first = {"alt_longs_in_btc_death_cross_lost": "alt_longs"}.get(codes[0], codes[0])
+    line = T["trend_" + first].format(**V)
+    if first != "alt_longs" and "alt_longs_in_btc_death_cross_lost" in codes:
+        line += (" " if lang == "en" else "") + T["trend_alt_longs_tail"].format(**V)
+    return line

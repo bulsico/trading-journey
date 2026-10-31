@@ -51,6 +51,7 @@ READ_ONLY_TOOLS = {
     "get_accounts", "get_equity_orders", "get_option_orders", "get_crypto_orders",
     "get_realized_pnl", "get_pnl_trade_history", "get_equity_positions",
     "get_option_positions", "get_crypto_positions",
+    "get_equity_historicals",     # daily candles for the SMA trend tags (lsl/candles.py)
 }
 ORDER_TOOLS = {"equity": "get_equity_orders", "option": "get_option_orders",
                "crypto": "get_crypto_orders"}
@@ -737,7 +738,27 @@ def set_namespace(run, namespace):
     run.save()
 
 
-def plan(run, max_calls=8, now=None, option_universe=None, namespace=None):
+def _candle_calls(run, max_calls):
+    """Stock candle windows, planned once the account streams are done (lsl/candles.py)."""
+    from . import candles
+    st = run.st
+    calls = []
+    try:
+        planned, _ = candles.rh_plan(run.dir, max_calls)
+    except Exception as e:          # never let candles break the account sync
+        return [], "candle planning failed: %s" % type(e).__name__
+    for p in planned:
+        assert p["tool"] in READ_ONLY_TOOLS, p["tool"]
+        cid = _cid(st)
+        c = {"id": cid, "stream": "candles", "namespace": st["namespace"], "tool": p["tool"],
+             "args": p["args"], "save_as": os.path.join(run.raw_dir, cid + ".txt"),
+             "candles": {k: p[k] for k in ("sid", "symbol", "start", "end", "as_of_day")}}
+        st["pending"][cid] = c
+        calls.append(c)
+    return calls, None
+
+
+def plan(run, max_calls=8, now=None, option_universe=None, namespace=None, candles=True):
     if run.st is None:
         if not namespace:
             return {"error": NO_NAMESPACE}
@@ -779,10 +800,15 @@ def plan(run, max_calls=8, now=None, option_universe=None, namespace=None):
         st["pending"][cid] = c
         st["calls_issued"] += 1
         calls.append(c)
+    note = None
+    if (not calls and candles and st["calls_issued"] < MAX_CALLS
+            and not any(s["status"] == "active" for s in st["streams"].values())):
+        calls, note = _candle_calls(run, max_calls)
     run.save()
     if not calls:
-        return {"status": "done", "calls": [], "progress": progress(run)}
-    return {"status": "calls", "calls": calls, "progress": progress(run)}
+        return dict({"status": "done", "calls": [], "progress": progress(run)}, **({"note": note} if note else {}))
+    return {"status": "calls", "calls": calls, "progress": progress(run),
+            **({"stage": "stock candles (daily SMA history)"} if calls[0]["stream"] == "candles" else {})}
 
 
 def ingest(run):
@@ -797,6 +823,14 @@ def ingest(run):
         with open(path, encoding="utf-8", errors="replace") as f:
             text = f.read()
         sid = c["stream"]
+        if sid == "candles":
+            from . import candles as candles_mod
+            cst = candles_mod.rh_ingest(run.dir, c, text)
+            del st["pending"][cid]
+            os.makedirs(os.path.join(run.raw_dir, "done"), exist_ok=True)
+            os.replace(path, os.path.join(run.raw_dir, "done", cid + ".txt"))
+            done.append({"id": cid, "status": "candles:" + cst, "records": 0})
+            continue
         s = st["streams"][sid]
         status, recs, d = classify(text, _list_keys(s))
         if status == ERROR and any(m in text for m in NOT_APPLICABLE):

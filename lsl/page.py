@@ -709,6 +709,70 @@ def _accounts(sm, se, lang):
             "caption": T["caption"].format(n=num(A["count"])), "labels": T}
 
 
+def trend_vars(tr):
+    """Display values shared by the Page callouts and the TLDR trend line."""
+    w, c = tr["by_alignment"]["with"], tr["by_alignment"]["counter"]
+    a = tr.get("alt_longs_in_btc_death_cross") or {}
+    wr = lambda b: pct(b["win_rate"]) if b.get("win_rate") is not None else "-"
+    av = lambda b: money(b["avg_pnl"], True) if b.get("avg_pnl") is not None else "-"
+    return {"w_wr": wr(w), "w_net": money(w["pnl"], True), "w_n": num(w["trades"]), "w_avg": av(w),
+            "c_wr": wr(c), "c_net": money(c["pnl"], True), "c_n": num(c["trades"]), "c_avg": av(c),
+            "counter_share": pct(tr["counter_share"]) if tr.get("counter_share") is not None else "-",
+            "n": num(a.get("trades") or 0), "wr": wr(a) if a else "-", "net": money(a.get("pnl") or 0, True)}
+
+
+def _trend(sm, lang):
+    """Trend-discipline section: SMA alignment of every entry, all figures from summary["trend"]."""
+    tr = sm.get("trend") or {}
+    T = persona.labels(lang)["trend"]
+    if tr.get("status") != "ok" or not tr.get("tagged"):
+        return {"show": False, "labels": {}, "message": T["no_candles"] if tr.get("status") == "no_candles" else None}
+    cov = tr["coverage"]
+    untagged = [T["status_item"].format(label=T["status_" + k], n=num(v)) for k, v in sorted(cov["by_status"].items())
+                if k != "ok" and v and ("status_" + k) in T]
+    tagged = tr["tagged"]
+
+    def row(label, b, share=True):
+        return {"label": label, "trades": num(b["trades"]),
+                "share_display": pct(b["trades"] / tagged) if share and tagged else "-",
+                "win_rate_display": pct(b["win_rate"]) if b.get("win_rate") is not None else "-",
+                "net_display": money(b["pnl"], True), "avg_display": money(b["avg_pnl"], True) if b.get("avg_pnl") is not None else "-",
+                "tone": tone(b["pnl"])}
+
+    def split(key, label, b):
+        al = b["by_alignment"]
+        return {"key": key, "label": label, "tagged": num(b["tagged"]),
+                "with_display": pct(b["with_share"]) if b.get("with_share") is not None else "-",
+                "counter_display": pct(b["counter_share"]) if b.get("counter_share") is not None else "-",
+                "with_net_display": money(al["with"]["pnl"], True), "with_tone": tone(al["with"]["pnl"]),
+                "counter_net_display": money(al["counter"]["pnl"], True), "counter_tone": tone(al["counter"]["pnl"])}
+    acct_lab = {r["key"]: (r.get("labels") or {}).get(lang) or r["label"] for r in (sm.get("accounts") or {}).get("rows", [])}
+    V = trend_vars(tr)
+    callouts = []
+    for code in tr.get("notable") or []:
+        k = {"alt_longs_in_btc_death_cross_lost": "alt_longs"}.get(code, code)
+        tone_ = "success" if code == "with_trend_better" else "warning" if code == "counter_trend_better" else "danger"
+        callouts.append({"kind": code, "tone": tone_, "lead": T["n_%s_lead" % k].format(**V), "body": T["n_" + k].format(**V)})
+    per = sm.get("persona") or {}
+    basis = per.get("trend_basis")
+    from .trend import MIN_TAGGED
+    return {
+        "show": True, "labels": {k: v for k, v in T.items() if k.startswith(("col_", "by_"))}, "caption": T["caption"],
+        "coverage_display": T["coverage"].format(tagged=num(tagged), closed=num(cov["closed_trades"]), share=pct(cov["share"]),
+                                                 untagged=T.get("list_sep", ", ").join(untagged) or "-"),
+        "alignment": [row(T[a], tr["by_alignment"][a]) for a in ("with", "counter", "neutral")],
+        "regime": [row(T[r], tr["by_regime"][r]) for r in ("golden", "death", "flat") if tr["by_regime"][r]["trades"]],
+        "direction": [row("%s · %s" % (T[d], T[a]), tr["by_direction"][d][a])
+                      for d in ("long", "short") for a in ("with", "counter", "neutral") if tr["by_direction"][d][a]["trades"]],
+        "venues": [split(v, venue_label(v), b) for v, b in sorted(tr["by_venue"].items()) if b["tagged"]],
+        "accounts": [split(a, acct_lab.get(a, a), b) for a, b in sorted(tr["by_account"].items()) if b["tagged"]]
+                    if len(acct_lab) >= 2 else [],
+        "callouts": callouts, "none": T["none"] if not callouts else None, "rules": T["rules"],
+        "basis_display": (T["basis_sma"].format(score=num((per.get("ratings") or {}).get("trend_awareness") or 0))
+                          if basis == "sma" else T["basis_formula"].format(min=num(MIN_TAGGED))),
+    }
+
+
 def build(sm, se, op, dq, lang="en"):
     from . import card as card_mod, report
     set_lang(lang)
@@ -747,6 +811,8 @@ def build(sm, se, op, dq, lang="en"):
     page["has"]["multi_line"] = bool(lines)
     page["accounts"] = _accounts(sm, se, lang)
     page["has"]["accounts"] = page["accounts"]["show"]
+    page["trend"] = _trend(sm, lang)
+    page["has"]["trend"] = page["trend"]["show"]
     page["profile"] = report.profile_block(sm, lang)
     page["card"] = card_mod.page_block(sm, se, lang)
     page["tldr"] = report.tldr(sm, page, lang)

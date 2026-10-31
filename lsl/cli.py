@@ -5,6 +5,7 @@ DATA/state (sync state + parsed records), DATA/raw (saved MCP results), DATA/out
 It is kept between runs so later runs sync incrementally; `--run` is an alias.
 
   lsl rh plan    [--data-dir DATA] [--namespace NS] [--max N] [--now ISO]  next exact MCP calls
+                 [--candles on|off]  also plan Robinhood stock-candle calls (default off)
   lsl rh ingest  [--data-dir DATA]                          parse saved results, advance
   lsl rh status  [--data-dir DATA]                          progress + completeness
   lsl rh refresh [--data-dir DATA] [--namespace NS] [--now ISO]  start an incremental round
@@ -13,6 +14,12 @@ It is kept between runs so later runs sync incrementally; `--run` is an alias.
   lsl hl list    [--data-dir DATA]                          configured addresses + sync state
   lsl hl fetch   [--data-dir DATA] [--address 0x...] [--now ISO]  sync every address (incremental)
   lsl hl tokens  [--unit] [--match NAME]                    public spotMeta token index/tokenId lookup
+  lsl candles fetch  [--data-dir DATA] [--stocks yahoo|rh]
+                                        daily candles for the SMA trend tags: Hyperliquid
+                                        candleSnapshot for crypto/HL markets (throttled, resumable);
+                                        stocks: yahoo (default) = keyless box-side fetch, 1 call per
+                                        symbol; rh = the `lsl rh plan --candles on` connector loop
+  lsl candles status [--data-dir DATA]   which candle series are complete / missing
   lsl sources    [--data-dir DATA]                          which sources have data (rh, hl addresses)
   lsl compute    [--data-dir DATA] [--scope SCOPE] [--out DIR] [--lang zh|en]
                  SCOPE: all (default) | rh | rh:<account> | hl | hl:<address>; outputs go to
@@ -89,6 +96,16 @@ def main(argv=None):
     rh.add_argument("--now")
     rh.add_argument("--option-universe", choices=["on", "off"],
                     help="optional option-contract cross-check (default off)")
+    rh.add_argument("--candles", choices=["on", "off"], default="off",
+                    help="also plan stock daily-candle calls (Robinhood get_equity_historicals) once the "
+                         "account sync is done; ~1 call per 50 trading days per symbol (default off: "
+                         "`lsl candles fetch --stocks yahoo` covers stocks keylessly)")
+    ca = sub.add_parser("candles")
+    ca.add_argument("action", choices=["fetch", "status"])
+    ca.add_argument("--stocks", choices=["rh", "yahoo"], default="yahoo",
+                    help="stock candles: yahoo (default, keyless, 1 call/symbol) or rh (the "
+                         "`lsl rh plan --candles on` connector loop)")
+    _data(ca)
     hl = sub.add_parser("hl")
     hl.add_argument("action", choices=["add", "remove", "list", "fetch", "tokens"])
     hl.add_argument("target", nargs="?", help="add/remove: the address (remove also takes a label)")
@@ -137,7 +154,8 @@ def main(argv=None):
         run = rhsync.Run(a.run)
         if a.action == "plan":
             ou = None if a.option_universe is None else a.option_universe == "on"
-            res = rhsync.plan(run, a.max, now=_now(a), option_universe=ou, namespace=a.namespace)
+            res = rhsync.plan(run, a.max, now=_now(a), option_universe=ou, namespace=a.namespace,
+                              candles=a.candles == "on")
         elif run.st is None:
             res = {"error": "no state; run `lsl rh plan` first"}
         elif a.action == "ingest":
@@ -151,7 +169,21 @@ def main(argv=None):
                 res = {"error": rhsync.NO_NAMESPACE}
             else:
                 rhsync.start_incremental(run, _now(a))
-                res = rhsync.plan(run, a.max)
+                res = rhsync.plan(run, a.max, candles=a.candles == "on")
+        sys.stdout.write(dumps(res))
+        return 1 if "error" in res else 0
+    if a.cmd == "candles":
+        from . import candles
+        if a.action == "fetch":
+            res = candles.fetch_hl(a.run)
+            if "error" not in res and a.stocks == "yahoo":
+                res = {"hl": res, "stocks_yahoo": candles.fetch_stocks_yahoo(a.run)}
+            elif "error" not in res:
+                st = candles.status(a.run)
+                res["stocks"] = dict(st["rh"], next="run the `lsl rh plan --candles on` / `lsl rh ingest` loop until done"
+                                     if st["rh"]["windows_left"] else None)
+        else:
+            res = candles.status(a.run)
         sys.stdout.write(dumps(res))
         return 1 if "error" in res else 0
     if a.cmd == "purge":

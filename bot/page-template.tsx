@@ -59,6 +59,7 @@ function savePng(svg: string, name: string, onFail: () => void) {
 }
 
 const ACC = D.accounts as any;
+const TR = D.trend as any;
 const CARD_ACCTS = (CARD.accounts || []) as any[];
 const cardFor = (key: string) => (key === "all" ? CARD : CARD_ACCTS.find((c) => c.key === key) || CARD);
 // The account's card in the chosen period/money mode, else its first available period.
@@ -154,7 +155,7 @@ export default function TradingJourney() {
   const toc = [U.tldr, U.share_card, U.trader_profile, U.scoreboard, U.verdict, ...(has.journey ? [U.cumulative] : []),
     ...(has.accounts ? [AL.heading] : []), ...(has.journey ? [U.monthly] : []), ...((D.years as any[]).length ? [U.by_year] : []),
     ...(has.trades ? [U.where_money] : []), ...((G.rows as any[]).length ? [U.assets] : []), ...(has.trades ? [U.activity] : []),
-    U.persona, U.positions, U.data_quality].map((label) => ({ label }));
+    ...(has.trend ? [U.trend] : []), U.persona, U.positions, U.data_quality].map((label) => ({ label }));
 
   return (
     <Page
@@ -336,6 +337,43 @@ export default function TradingJourney() {
           <Section heading={U.fills_per_month}>
             <Heatmap rows={A.heat_years} columns={A.heat_months} values={A.heat_fills} max={A.heat_max} />
           </Section>
+        </Section>
+      ) : null}
+
+      {has.trend ? (
+        <Section heading={U.trend} caption={TR.caption}>
+          <Text>{TR.coverage_display}</Text>
+          {(TR.callouts as any[]).map((x, i) => (
+            <Callout key={`${x.kind}-${i}`} tone={t(x.tone)} lead={x.lead}>{x.body}</Callout>
+          ))}
+          {TR.none ? <Text>{TR.none}</Text> : null}
+          <Table
+            columns={[TR.labels.col_alignment, TR.labels.col_trades, TR.labels.col_share, TR.labels.col_win_rate, TR.labels.col_net, TR.labels.col_avg]}
+            rows={(TR.alignment as any[]).map((r) => [r.label, r.trades, r.share_display, r.win_rate_display, cell(r.net_display, r.tone), r.avg_display])}
+          />
+          <Grid columns={2}>
+            <Section heading={TR.labels.by_regime}>
+              <Table
+                columns={[TR.labels.col_regime, TR.labels.col_trades, TR.labels.col_win_rate, TR.labels.col_net]}
+                rows={(TR.regime as any[]).map((r) => [r.label, r.trades, r.win_rate_display, cell(r.net_display, r.tone)])}
+              />
+            </Section>
+            <Section heading={TR.labels.by_direction}>
+              <Table
+                columns={[TR.labels.col_direction, TR.labels.col_trades, TR.labels.col_win_rate, TR.labels.col_net]}
+                rows={(TR.direction as any[]).map((r) => [r.label, r.trades, r.win_rate_display, cell(r.net_display, r.tone)])}
+              />
+            </Section>
+          </Grid>
+          {(["venues", "accounts"] as const).filter((k) => (TR[k] as any[]).length).map((k) => (
+            <Section key={k} heading={k === "venues" ? TR.labels.by_venue : TR.labels.by_account}>
+              <Table
+                columns={[k === "venues" ? TR.labels.col_venue : TR.labels.col_account, TR.labels.col_tagged, TR.labels.col_with, TR.labels.col_counter, TR.labels.col_with_net, TR.labels.col_counter_net]}
+                rows={(TR[k] as any[]).map((r) => [r.label, r.tagged, r.with_display, r.counter_display, cell(r.with_net_display, r.with_tone), cell(r.counter_net_display, r.counter_tone)])}
+              />
+            </Section>
+          ))}
+          <Text>{`${TR.rules} ${TR.basis_display}`}</Text>
         </Section>
       ) : null}
 

@@ -22,8 +22,8 @@ rasterizer for the PNG share card (see step 5).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.4 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.4 2>/dev/null; git checkout -q v0.2.4
+[ -d $REPO/.git ] || git clone --branch v0.2.5 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.5 2>/dev/null; git checkout -q v0.2.5
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```
@@ -99,6 +99,28 @@ step 2. Only refresh a finished round. `--namespace` is remembered in the data
 dir; pass it again whenever `GetDynamicTools` returns a different one.
 `python3 bin/lsl rh status --data-dir $DATA` shows per-stream completeness.
 
+Daily candles for the trend tags (after both syncs, every run):
+
+```bash
+python3 bin/lsl candles fetch --data-dir $DATA
+```
+
+It needs no connector: Hyperliquid `candleSnapshot` for every crypto / HL market
+(HIP-3 perps use their own coin; Robinhood crypto uses the HL coin) and the keyless
+Yahoo chart endpoint for stocks and option underlyings, one daily series per
+underlying, cached in `$DATA/raw/candles/` and fetched incrementally (only the
+last 2 days are re-fetched). It throttles, backs off on 429 and is resumable:
+if it stops, run it again. Progress goes to stderr; the result lists
+`unavailable` series (delisted tickers, coins HL never listed); their trades stay
+untagged, they are not guessed. A first run on a long history takes a few
+minutes; later runs make almost no calls.
+If the box cannot reach Yahoo, use the Robinhood connector instead: run the
+Robinhood loop above again with `--candles on` until `done` (about one call per
+50 trading days per symbol, so hundreds of calls for a long history), then
+`python3 bin/lsl candles fetch --data-dir $DATA --stocks rh`.
+`python3 bin/lsl candles status --data-dir $DATA` shows which series are complete.
+Without candles, compute still runs; the trend section is just hidden.
+
 ## 4. Scope, then compute
 
 After syncing, do not ask about scope: build ONE combined report (`all`). With
@@ -132,8 +154,8 @@ harmless and byte-identical.) It writes, byte-identical for the same input:
 
 | file | use |
 |---|---|
-| `summary.json` | every number in the chat report: `overall`, `scopes`, `accounts` (per-account rows, totals, reconciliation, insights), `persona`, `profile`, best/worst trades, assets, months, `approximate`, `scope` |
-| `series.json` | chart data, per-asset totals, `asset_groups` (cross-venue) |
+| `summary.json` | every number in the chat report: `overall`, `scopes`, `accounts` (per-account rows, totals, reconciliation, insights), `persona`, `profile`, `trend`, best/worst trades, assets, months, `approximate`, `scope` |
+| `series.json` | chart data, per-asset totals, `asset_groups` (cross-venue), `trend_entries` (one SMA tag per closed trade) |
 | `open_positions.json` | `hl_perp`, `hl_spot`, `rh` positions and flags |
 | `data_quality.json` | `pass`, `checks[]` (`required` flag), RH coverage, gain sources, reconciliation, grouping |
 | `page.json` | the Page payload, already in `$LANG_`: `tldr`, `accounts`, `profile`, `card`, `has`, pre-formatted `*_display` strings, chart series |
@@ -141,6 +163,18 @@ harmless and byte-identical.) It writes, byte-identical for the same input:
 Read `data_quality.json` first. If `pass` is false, tell the user which required
 check failed and that numbers may be incomplete. Optional failures are worth one
 line in the data-quality notes, not an alarm.
+
+Trend discipline (`summary.trend`): every closed trade's entry is tagged against
+the daily SMAs of its asset (stocks 15/50/200, crypto 7/50/200, options use the
+underlying), from the last closed daily candle before the entry day. `alignment`
+is `with` (long above the fast SMA in a 50 > 200 golden cross, or short below it
+in a death cross), `counter` (the reverse) or `neutral`; too little history is
+`insufficient_history`, never a guess. Aggregates are by alignment, regime,
+direction × alignment, venue and account, plus alt longs taken while BTC was in
+a death cross; `notable` lists what is worth saying. With 20+ tagged trades,
+trend awareness in the persona is the with-trend share (`persona.trend_basis`
+= `sma`), otherwise the old formula (`formula`). Quote these fields; never
+re-derive trend calls from `context/market-context.md` or memory.
 
 Gains policy: inside Robinhood's realized-P&L coverage window, Robinhood's own
 `realized_gain` is the truth; earlier closes are FIFO estimates (`approx: true`).
@@ -213,6 +247,9 @@ source are hidden, Robinhood-only pages show no funding or HL sections, and
 with two or more accounts a "By account" section shows the account table,
 cross-account callouts and one expandable detail per account (equity
 sparkline, profile stats, card download); it is hidden for a single account.
+With candles, a "Trend discipline" section shows tag coverage, callouts, the
+with / counter / neutral table, regime and direction tables, and the split by
+venue and account.
 It opens with the TL;DR, the share card (account picker when there are several
 accounts, period and $/% toggles, Download PNG / Download SVG), and the trader
 profile ($/% toggle, venue selector, 7D/30D/90D/All table). The Page is
@@ -228,9 +265,10 @@ the user asks, send `share-card.png` from `$OUT` in chat.
 
 ## 7. Chat report
 
-Open with the TL;DR: the lines of `page.json` → `tldr`, verbatim (3 to 5
+Open with the TL;DR: the lines of `page.json` → `tldr`, verbatim (3 to 6
 lines, already in `$LANG_`; with several accounts one line names the account
-that carried the result and the one that bled). The "By account" section
+that carried the result and the one that bled; a trend line appears when trend
+discipline is notable). The "By account" section
 follows when there is more than one account. Then follow the template for the language exactly:
 
 - Chinese: `bot/report-template.zh.md`

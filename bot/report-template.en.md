@@ -10,7 +10,7 @@ interpret: never compute, convert or re-round a number yourself.
 
 ## Step 1: field map (summary.json, plus the pre-formatted display fields in page.json)
 
-- TL;DR: `page.json` → `tldr` (3 to 5 lines, copy verbatim, numbers untouched)
+- TL;DR: `page.json` → `tldr` (3 to 6 lines, copy verbatim, numbers untouched; a line starting "Trend:" appears only when trend discipline is notable)
 - Scope: `summary.scope.label` (e.g. "All accounts", "Robinhood Roth IRA …1234", "0xabcd…1234"); `summary.sources` (rh / hl); Hyperliquid addresses only as `summary.hl_addresses[].label` (short form or the user's nickname)
 - Basics: `overall.period.{from,to,days}`, `overall.fills`, `overall.unique_assets`, `overall.liquidations`
 - Stats: `overall.win_rate`, `overall.avg_win`, `overall.avg_loss`, `overall.profit_factor_ratio`, `overall.net_pnl`
@@ -21,6 +21,7 @@ interpret: never compute, convert or re-round a number yourself.
 - Monthly report card: `recent_months`, `by_month_best`, `by_month_worst`
 - Positions: `open_positions.json` (`hl_perp`, `hl_spot`, `rh`; `liq_distance_pct`, `asset_history`)
 - Grade: `persona.grade`, `persona.grade_label`
+- Trend discipline (only when `page.json` → `has.trend`): `page.json` → `trend`: `coverage_display`, `callouts[]` (`lead`, `body`), `none`, `alignment[]` / `regime[]` / `direction[]` (`label`, `trades`, `share_display`, `win_rate_display`, `net_display`, `avg_display`), `venues[]` / `accounts[]` (`label`, `tagged`, `with_display`, `counter_display`, `with_net_display`, `counter_net_display`), `basis_display`. Raw values: `summary.trend` (`by_alignment`, `by_regime`, `by_direction`, `by_venue`, `by_account`, `alt_longs_in_btc_death_cross`, `notable`); per entry: `series.trend_entries[]` (`price`, `sma`, `dist_pct`, `regime`, `alignment`, `btc_regime`). `persona.trend_basis` is `sma` when trend awareness comes from these tags, `formula` otherwise
 - Data quality: `data_quality.json` `pass` and `checks`; `summary.approximate.share` is the FIFO-estimated share. If > 0, say "some P&L is estimated"
 - Share card: `share-card.png` (or `.svg`) from `bin/lsl card --scope <scope> --lang en --png`; attach it. Per-account cards (`--per-account`) only when the user asks for one
 - By account (only when `summary.accounts.count` > 1): `page.json` → `accounts.rows[]` in order (`label`, `net_display`, `share_display`, `rov_display`, `volume_display`, `trades`, `win_rate_display`, `max_dd_display`, `best_display`, `worst_display`, `style_display`, `period_display`), `accounts.total`, `accounts.insights[]` (`lead`, `body`), `accounts.none`, `accounts.shared_display`. Raw values and the rules: `summary.accounts` (`rows`, `totals`, `reconciliation`, `insights`)
@@ -30,8 +31,12 @@ interpret: never compute, convert or re-round a number yourself.
 ## Step 2: read the market context
 
 Before writing, read `context/market-context.md` in the repo. It summarizes the
-2023-2026 market regimes, Hyperliquid specifics and common behavioural traps, so
-you can judge whether a trade went with or against the market of its day.
+2023-2026 market regimes, Hyperliquid specifics and common behavioural traps, as
+background for the judgement. Whether an entry went with or against the trend is
+already computed: use `summary.trend` and `series.trend_entries` (SMA alignment,
+50/200 regime, BTC regime for alt longs), never infer it from this document or
+from memory. If `summary.trend.status` is `no_candles`, say trend tags were not
+computed instead of guessing.
 
 Use it as background, never quote it. Fold it into the judgement (e.g. a loss
 taken long during the BTC death cross → "going long here took guts, and the
@@ -125,6 +130,24 @@ Resilience          {█ x resilience}  {resilience}/10  ({jab})
 ```
 
 > █ filled, ░ empty, e.g. ████░░░░░░ 4/10
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## 📐 Trend discipline
+
+(Only when `has.trend`; otherwise one line: trend tags need `lsl candles fetch`.)
+
+{trend.coverage_display}
+
+{each trend.callouts[]: **{lead}**: {body}; or trend.none}
+
+| Entry | Trades | Share | Win rate | Net P&L | Avg P&L |
+|---|---|---|---|---|---|
+{one row per trend.alignment[]}
+
+{One or two sentences on what the regime and direction rows show (trend.regime[], trend.direction[]), and, with several venues or accounts, where trend-fighting cost the most (trend.venues[] / trend.accounts[]). Figures only from those fields.}
+
+{trend.basis_display}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
