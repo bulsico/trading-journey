@@ -1,0 +1,16 @@
+# python
+__pycache__/
+*.pyc
+
+# account data (never commit)
+out/
+raw/
+state/
+*-data/
+trading-journey-data/
+agent-tools/
+*.D
+
+# misc
+.DS_Store
+.env

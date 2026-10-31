@@ -1,0 +1,44 @@
+{
+ "_about": [
+  "Cross-venue canonical asset map. A group key is <kind>:<SYMBOL> with kind in",
+  "crypto | equity | commodity | index | private. Venue rules (lsl/assets.py):",
+  "  rh_equity, rh_option (option chain symbol)   -> equity:<sym>",
+  "  rh_crypto                                     -> crypto:<sym>",
+  "  hl_spot (whitelisted tokens only)             -> crypto:<underlying from hl_spot_whitelist.json>",
+  "  hl_perp (main dex)                            -> crypto:<coin>, after multiplier rules",
+  "  hl_dex:<dex> (HIP-3 'dex:SYM')                -> strip prefix, kind from dex_kinds; for 'tradfi' dexes the",
+  "                                                   kind is tradfi_kinds[SYM] if listed, else equity",
+  "Multiplier rules (HL perps only): ^k([A-Z0-9]+)$ and ^1000([A-Z0-9]+)$ -> base symbol, multiplier 1000.",
+  "`aliases` then renames whole keys (ticker changes etc.).",
+  "Ambiguous -> not grouped (own 'unmapped:' group) and listed in data_quality.json: a HIP-3 dex missing from",
+  "dex_kinds, an adjusted option chain symbol (^[A-Z]+[0-9]+$), an unresolved symbol ('?', 'pair:...').",
+  "To extend: add the dex to dex_kinds or a key to aliases, then run `bin/lsl selftest` and recompute."
+ ],
+ "aliases": {
+  "equity:FB": "equity:META",
+  "equity:SQ": "equity:XYZ"
+ },
+ "dex_kinds": {
+  "cash": "tradfi",
+  "flx": "tradfi",
+  "hyna": "crypto",
+  "km": "tradfi",
+  "vntl": "private",
+  "xyz": "tradfi"
+ },
+ "tradfi_kinds": {
+  "CL": "commodity",
+  "COPPER": "commodity",
+  "GOLD": "commodity",
+  "JP225": "index",
+  "NATGAS": "commodity",
+  "OIL": "commodity",
+  "PALLADIUM": "commodity",
+  "PLATINUM": "commodity",
+  "SILVER": "commodity",
+  "URANIUM": "commodity",
+  "US500": "index",
+  "USA500": "index",
+  "XYZ100": "index"
+ }
+}

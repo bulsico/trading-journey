@@ -1,0 +1,186 @@
+{
+ "_about": [
+  "Hyperliquid spot whitelist. Only spot pairs whose BASE token index (and tokenId) is listed in `tokens`",
+  "and whose QUOTE token is listed in `quote_tokens` count toward P&L; every other HL spot token is treated as junk and",
+  "excluded (counted in data_quality.json). Tokens are matched by spotMeta token index + tokenId, never by display name.",
+  "`tokens` = HYPE plus the assets Unit lists as supported (source URL below), mapped to their canonical underlying",
+  "(the HL perp ticker, so spot and perps group together).",
+  "Refresh: open the source URL, then run `bin/lsl hl tokens --unit` (public spotMeta, no address) to get index/tokenId",
+  "for each listed asset's U-token, edit `tokens`, bump `retrieved`, and run `bin/lsl selftest`.",
+  "`unit_tokens_not_listed` are Unit-deployed tokens absent from the docs page at `retrieved`; they stay excluded."
+ ],
+ "quote_tokens": [
+  {
+   "index": 0,
+   "name": "USDC",
+   "tokenId": "0x6d1e7cde53ba9467b783cb7c530ce054"
+  },
+  {
+   "index": 235,
+   "name": "USDE",
+   "tokenId": "0x2e6d84f2d7ca82e6581e03523e4389f7"
+  },
+  {
+   "index": 268,
+   "name": "USDT0",
+   "tokenId": "0x25faedc3f054130dbb4e4203aca63567"
+  },
+  {
+   "index": 360,
+   "name": "USDH",
+   "tokenId": "0x54e00a5988577cb0b0c9ab0cb6ef7f4b"
+  }
+ ],
+ "retrieved": "2026-10-31",
+ "source": "https://docs.hyperunit.xyz/unit/about-unit/supported-assets",
+ "tokens": [
+  {
+   "index": 150,
+   "name": "HYPE",
+   "note": "Hyperliquid native token (not bridged)",
+   "tokenId": "0x0d01dc56dcaaca66ad901c959b4011ec",
+   "underlying": "HYPE"
+  },
+  {
+   "index": 197,
+   "name": "UBTC",
+   "note": "Bitcoin",
+   "tokenId": "0x8f254b963e8468305d409b33aa137c67",
+   "underlying": "BTC"
+  },
+  {
+   "index": 221,
+   "name": "UETH",
+   "note": "Ethereum",
+   "tokenId": "0xe1edd30daaf5caac3fe63569e24748da",
+   "underlying": "ETH"
+  },
+  {
+   "index": 254,
+   "name": "USOL",
+   "note": "Solana",
+   "tokenId": "0x49b67c39f5566535de22b29b0e51e685",
+   "underlying": "SOL"
+  },
+  {
+   "index": 269,
+   "name": "UFART",
+   "note": "Fartcoin (FART); HL perp ticker is FARTCOIN",
+   "tokenId": "0x7650808198966e4285687d3deb556ccc",
+   "underlying": "FARTCOIN"
+  },
+  {
+   "index": 299,
+   "name": "UPUMP",
+   "note": "Pump",
+   "tokenId": "0x544e60f98a36d7b22c0fb5824b84f795",
+   "underlying": "PUMP"
+  },
+  {
+   "index": 319,
+   "name": "UUUSPX",
+   "note": "SPX6900",
+   "tokenId": "0x2ff71b802a6788a052c7f1a58ec863af",
+   "underlying": "SPX"
+  },
+  {
+   "index": 320,
+   "name": "UBONK",
+   "note": "Bonk",
+   "tokenId": "0xb113d34e351cf195733c98442530c099",
+   "underlying": "BONK"
+  },
+  {
+   "index": 343,
+   "name": "UXPL",
+   "note": "Plasma",
+   "tokenId": "0x2c54c60600e1d786b2dfc139a38a5a99",
+   "underlying": "XPL"
+  },
+  {
+   "index": 361,
+   "name": "UDZ",
+   "note": "Double Zero",
+   "tokenId": "0x9cd8fd4cae61e63a10ba7615780ee520",
+   "underlying": "2Z"
+  },
+  {
+   "index": 383,
+   "name": "UMON",
+   "note": "Monad",
+   "tokenId": "0x58dae745c8c5fed4012f35ef39829c2d",
+   "underlying": "MON"
+  },
+  {
+   "index": 419,
+   "name": "UZEC",
+   "note": "Zcash",
+   "tokenId": "0x1c994ad3381d31c86c8c2d74ed89a365",
+   "underlying": "ZEC"
+  },
+  {
+   "index": 443,
+   "name": "UVIRT",
+   "note": "Virtual",
+   "tokenId": "0x85b8124314ae77b78b4b6f20ecd93149",
+   "underlying": "VIRTUAL"
+  },
+  {
+   "index": 451,
+   "name": "UAVAX",
+   "note": "Avalanche",
+   "tokenId": "0x730fc3855fb77d2aa5a19dd7891dbe80",
+   "underlying": "AVAX"
+  }
+ ],
+ "unit_tokens_not_listed": [
+  {
+   "fullName": "Unit SP500 xStock",
+   "index": 312,
+   "name": "USPYX",
+   "tokenId": "0xc0fe8a28e4fbcfb7c6cb298c8ae0f206"
+  },
+  {
+   "fullName": "Unit Mog Coin (m)",
+   "index": 326,
+   "name": "UMOG",
+   "tokenId": "0xe839668425f85cc7d6ed2fb1edee3e88"
+  },
+  {
+   "fullName": "Unit AURA",
+   "index": 334,
+   "name": "AURA",
+   "tokenId": "0xc69352e2d17a3d56230caf6984eabcdc"
+  },
+  {
+   "fullName": "Unit Ethena",
+   "index": 338,
+   "name": "UENA",
+   "tokenId": "0x593494b6af79172fa983a0cf1c88e0e0"
+  },
+  {
+   "fullName": "Unit Worldcoin",
+   "index": 358,
+   "name": "UWLD",
+   "tokenId": "0x571aa6d5261fb8f28e21a9cdb2e1c646"
+  },
+  {
+   "fullName": "Unit Dogecoin",
+   "index": 365,
+   "name": "UDOGE",
+   "tokenId": "0xd5e0a2d2aa8a05e73e4ef1caeea2f62a"
+  },
+  {
+   "fullName": "Unit MegaETH",
+   "index": 403,
+   "name": "UMEGA",
+   "tokenId": "0xc99926509a189b40651055a15d3be621"
+  },
+  {
+   "fullName": "Unit Ansem",
+   "index": 844,
+   "name": "UANSEM",
+   "tokenId": "0xa7e941cbc468d48b99dc6002f8f5042b"
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+{
+  "archetypes": {
+    "TREND_MASTER": "右侧交易大师",
+    "OVERTRADE": "过度交易内耗型",
+    "KNIFE_CATCHER": "左侧接刀殉道者",
+    "SCATTER_GUN": "机枪扫射型",
+    "PANIC_TRADER": "情绪化清仓机",
+    "DIAMOND_HANDS": "钻石手候鸟",
+    "UNKNOWN": "神秘交易员"
+  },
+  "modifiers": {
+    "STOP_LOSS_PHOBIA": "·止损恐惧症",
+    "AVERAGING_DOWN": "·补仓上瘾",
+    "TREND_AWAKENING": "·右侧觉醒中"
+  },
+  "grades": {
+    "S": "传奇交易员",
+    "A": "稳健老手",
+    "B": "有潜力新人",
+    "C": "有潜力的反向指标",
+    "D": "纯韭菜",
+    "F": "建议认真考虑人生方向",
+    "?": "数据不足"
+  },
+  "ratings": {
+    "patience": "持仓耐心",
+    "fomo_resistance": "FOMO抵抗力",
+    "stop_loss_discipline": "止损纪律",
+    "trend_awareness": "趋势感知",
+    "resilience": "越挫越勇"
+  }
+}

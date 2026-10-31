@@ -1,0 +1,32 @@
+{
+  "archetypes": {
+    "TREND_MASTER": "Trend-Riding Master",
+    "OVERTRADE": "Burnout Overtrader",
+    "KNIFE_CATCHER": "Falling-Knife Martyr",
+    "SCATTER_GUN": "Machine-Gun Scatterer",
+    "PANIC_TRADER": "Emotional Liquidator",
+    "DIAMOND_HANDS": "Diamond-Handed Drifter",
+    "UNKNOWN": "Mystery Trader"
+  },
+  "modifiers": {
+    "STOP_LOSS_PHOBIA": "· stop-loss phobia",
+    "AVERAGING_DOWN": "· addicted to averaging down",
+    "TREND_AWAKENING": "· trend-awakening in progress"
+  },
+  "grades": {
+    "S": "Legendary Trader",
+    "A": "Steady Veteran",
+    "B": "Promising Rookie",
+    "C": "Promising Contrarian Indicator",
+    "D": "Pure Exit Liquidity",
+    "F": "Seriously Reconsider Your Life Choices",
+    "?": "Not Enough Data"
+  },
+  "ratings": {
+    "patience": "Patience",
+    "fomo_resistance": "FOMO resistance",
+    "stop_loss_discipline": "Stop-loss discipline",
+    "trend_awareness": "Trend awareness",
+    "resilience": "Resilience"
+  }
+}
