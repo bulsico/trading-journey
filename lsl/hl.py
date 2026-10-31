@@ -1,6 +1,14 @@
 """Hyperliquid raw-data fetcher (public info API, no auth, read-only).
 
-Fetches, for one address passed on the command line (never stored in the repo):
+Zero to many addresses.  The configured list lives in the private data dir
+(DATA/state/hl/addresses.json, never in the repo); each address syncs into its
+own DATA/state/hl/<fingerprint>/ directory (fingerprint = sha256(address)[:12])
+with its own incremental state.  `fetch_all` syncs every configured address
+against one shared `now` and one spotMeta snapshot.  A pre-0.2 single-address
+layout (files directly in state/hl/) is adopted when the matching address is
+added, and read as the only address while no list exists.
+
+Fetches, per address:
   * userFillsByTime           paged forward from t=0, deduped by tid
   * userFunding               paged forward, deduped by (time, coin, hash)
   * userNonFundingLedgerUpdates  paged forward, deduped by (time, hash, type)
@@ -27,11 +35,17 @@ so tests can run against a fake API.
 import hashlib
 import json
 import os
+import re
+import shutil
 import urllib.request
 
 from .util import ms, write_json, read_json
 
 HL_API = "https://api.hyperliquid.xyz/info"
+ADDRESS_RE = re.compile(r"^0x[0-9a-f]{40}$")
+LABEL_RE = re.compile(r"^[A-Za-z0-9_-]{1,24}$")
+FILES = ("fills", "funding", "ledger", "spot_names", "spot_meta", "clearinghouse", "spot_clearinghouse",
+         "info")
 FILL_CAP = 10000          # HL serves at most the 10k most recent fills
 MAX_PAGES = 200
 
@@ -147,16 +161,184 @@ def tokens(unit=False, names=(), post=None):
     return {"status": "done", "tokens": sorted(out, key=lambda t: t["index"])}
 
 
-def fetch(run_dir, address, now, post=None):
-    post = post or urllib_transport
-    address = address.strip().lower()
-    if not (address.startswith("0x") and len(address) == 42):
-        return {"error": "address must be a 0x-prefixed 40-hex-digit address"}
-    end = ms(now)
-    d = os.path.join(run_dir, "state", "hl")
-    os.makedirs(d, exist_ok=True)
+# ----------------------------------------------------------------- address list
+def normalize(address):
+    """Lower-cased 0x + 40 hex digits, or None."""
+    a = str(address or "").strip().lower()
+    return a if ADDRESS_RE.match(a) else None
 
-    prev = load(run_dir) or {}
+
+def fingerprint(address):
+    return hashlib.sha256(address.encode()).hexdigest()[:12]
+
+
+def short(address, n=4):
+    return "%s\u2026%s" % (address[:2 + n], address[-n:])
+
+
+def _root(run_dir):
+    return os.path.join(run_dir, "state", "hl")
+
+
+def _cfg_path(run_dir):
+    return os.path.join(_root(run_dir), "addresses.json")
+
+
+def addr_dir(run_dir, address):
+    return os.path.join(_root(run_dir), fingerprint(address))
+
+
+def load_config(run_dir):
+    """Sorted, deduped [{"address", "label"}] or None when no list was ever saved."""
+    cfg = read_json(_cfg_path(run_dir))
+    if cfg is None:
+        return None
+    seen, out = set(), []
+    for e in cfg.get("addresses") or []:
+        a = normalize(e.get("address"))
+        if a and a not in seen:
+            seen.add(a)
+            out.append({"address": a, "label": e.get("label")})
+    return sorted(out, key=lambda e: e["address"])
+
+
+def _save_config(run_dir, entries):
+    write_json(_cfg_path(run_dir), {"addresses": sorted(entries, key=lambda e: e["address"])})
+
+
+def _legacy_fp(run_dir):
+    info = read_json(os.path.join(_root(run_dir), "info.json"))
+    return (info or {}).get("address_fingerprint") if info else None
+
+
+def _adopt_legacy(run_dir, address):
+    """Move a pre-0.2 flat state/hl layout into the address's own dir when it is that address."""
+    if _legacy_fp(run_dir) != fingerprint(address):
+        return False
+    d = addr_dir(run_dir, address)
+    os.makedirs(d, exist_ok=True)
+    for k in FILES:
+        src = os.path.join(_root(run_dir), k + ".json")
+        if os.path.exists(src):
+            os.replace(src, os.path.join(d, k + ".json"))
+    return True
+
+
+def tags(entries):
+    """address -> display tag.  One address: "hl" (scope/account ids stay as in 0.1);
+    several: the custom label or a short 0x1234\u20265678 form, widened until unique."""
+    if len(entries) == 1:
+        return {entries[0]["address"]: "hl"}
+    out = {}
+    for n in (4, 6, 8, 20):
+        out = {e["address"]: e.get("label") or short(e["address"], n) for e in entries}
+        if len(set(out.values())) == len(out):
+            break
+    return out
+
+
+def labels(entries):
+    """address -> human label (custom label or short form), for display only."""
+    t = tags(entries) if len(entries) > 1 else {}
+    return {e["address"]: e.get("label") or t.get(e["address"]) or short(e["address"]) for e in entries}
+
+
+def add(run_dir, address, label=None):
+    a = normalize(address)
+    if not a:
+        return {"error": "not a Hyperliquid address: expected 0x followed by 40 hex digits"}
+    if label is not None and not LABEL_RE.match(label):
+        return {"error": "label must be 1-24 letters, digits, '-' or '_'"}
+    entries = load_config(run_dir) or []
+    if any(e["address"] == a for e in entries):
+        return {"status": "already_added", "address": short(a), "count": len(entries)}
+    if label and any(e.get("label") == label for e in entries):
+        return {"error": "label %r is already used" % label}
+    entries.append({"address": a, "label": label})
+    os.makedirs(_root(run_dir), exist_ok=True)
+    adopted = _adopt_legacy(run_dir, a)
+    _save_config(run_dir, entries)
+    return {"status": "added", "address": short(a), "fingerprint": fingerprint(a),
+            "adopted_existing_data": adopted, "count": len(entries)}
+
+
+def _find(entries, ident):
+    ident = str(ident or "").strip()
+    a = normalize(ident)
+    for e in entries:
+        if a and e["address"] == a:
+            return e
+    for e in entries:
+        if ident and ident in (fingerprint(e["address"]), e.get("label"), short(e["address"])):
+            return e
+    return None
+
+
+def remove(run_dir, ident):
+    """Drop an address (full address, label, fingerprint or short form) and delete its stored data."""
+    entries = load_config(run_dir) or []
+    e = _find(entries, ident)
+    if not e:
+        return {"error": "no configured address matches %r" % ident, "count": len(entries)}
+    entries = [x for x in entries if x is not e]
+    _save_config(run_dir, entries)
+    d = addr_dir(run_dir, e["address"])
+    if os.path.isdir(d):
+        shutil.rmtree(d)
+    return {"status": "removed", "address": short(e["address"]), "count": len(entries)}
+
+
+def listing(run_dir):
+    entries = load_config(run_dir)
+    out = []
+    lab = labels(entries or [])
+    for e in entries or []:
+        info = read_json(os.path.join(addr_dir(run_dir, e["address"]), "info.json"))
+        out.append({"address": e["address"], "short": short(e["address"]), "label": lab[e["address"]],
+                    "fingerprint": fingerprint(e["address"]), "synced": info is not None,
+                    "as_of_ms": (info or {}).get("as_of_ms"),
+                    "fills": ((info or {}).get("fills") or {}).get("count")})
+    res = {"status": "done", "count": len(out), "addresses": out}
+    lf = _legacy_fp(run_dir)
+    if lf:
+        res["legacy_data"] = {"fingerprint": lf, "used": entries is None,
+                              "hint": "data from an earlier single-address version; `lsl hl add <that address>` "
+                                      "adopts it, `lsl purge --source hl` deletes it"}
+    return res
+
+
+# ----------------------------------------------------------------- fetch
+def fetch(run_dir, address, now, post=None):
+    """Add `address` (if new) and sync just that address."""
+    res = add(run_dir, address)
+    if "error" in res:
+        return res
+    return _fetch_one(run_dir, normalize(address), ms(now), post or urllib_transport)
+
+
+def fetch_all(run_dir, now, post=None):
+    """Sync every configured address against one `now` and one spotMeta snapshot."""
+    post = post or urllib_transport
+    entries = load_config(run_dir) or []
+    if not entries:
+        res = {"error": "no Hyperliquid addresses configured; `lsl hl add 0x...` first"}
+        if _legacy_fp(run_dir):
+            res["legacy_data"] = listing(run_dir)["legacy_data"]
+        return res
+    end = ms(now)
+    meta = post({"type": "spotMeta"}) or {}
+    lab = labels(entries)
+    out = []
+    for e in entries:
+        r = _fetch_one(run_dir, e["address"], end, post, meta=meta)
+        out.append({"address": short(e["address"]), "label": lab[e["address"]], "info": r["info"]})
+    return {"status": "done", "count": len(out), "addresses": out}
+
+
+def _fetch_one(run_dir, address, end, post, meta=None):
+    d = addr_dir(run_dir, address)
+    os.makedirs(d, exist_ok=True)
+    prev = _load_dir(d) or {}
     pinfo = prev.get("info") or {}
     t_of = lambda r: int(r.get("time", 0))
     streams = {}
@@ -180,7 +362,8 @@ def fetch(run_dir, address, now, post=None):
         liq = f.get("liquidation")
         if isinstance(liq, dict) and "liquidatedUser" in liq:
             liq["is_self"] = str(liq.pop("liquidatedUser")).lower() == address
-    meta = post({"type": "spotMeta"}) or {}
+    if meta is None:
+        meta = post({"type": "spotMeta"}) or {}
     # perp state for the default dex plus every builder dex (HIP-3) seen in fills
     dexes = [""] + sorted({str(f.get("coin")).split(":")[0] for f in fills if ":" in str(f.get("coin"))})
     ch = {}
@@ -218,10 +401,32 @@ def fetch(run_dir, address, now, post=None):
     return {"status": "done", "info": info}
 
 
-def load(run_dir):
-    d = os.path.join(run_dir, "state", "hl")
+def _load_dir(d):
     if not os.path.exists(os.path.join(d, "info.json")):
         return None
-    return {k: read_json(os.path.join(d, k + ".json")) for k in
-            ("fills", "funding", "ledger", "spot_names", "spot_meta", "clearinghouse", "spot_clearinghouse",
-             "info") if os.path.exists(os.path.join(d, k + ".json"))}
+    return {k: read_json(os.path.join(d, k + ".json")) for k in FILES
+            if os.path.exists(os.path.join(d, k + ".json"))}
+
+
+def load(run_dir):
+    """Every synced configured address, sorted by address:
+    [{"tag", "label", "fingerprint", <data files>...}].  [] when none is synced.
+    With no address list at all, a pre-0.2 flat layout is read as the only address."""
+    entries = load_config(run_dir)
+    if entries is None:
+        h = _load_dir(_root(run_dir))
+        if not h:
+            return []
+        fp = (h.get("info") or {}).get("address_fingerprint") or "legacy"
+        return [dict(h, tag="hl", label="hl:" + fp[:6], fingerprint=fp, short=None)]
+    tg, lab, out = tags(entries), labels(entries), []
+    for e in entries:
+        h = _load_dir(addr_dir(run_dir, e["address"]))
+        if h:
+            out.append(dict(h, tag=tg[e["address"]], label=lab[e["address"]],
+                            fingerprint=fingerprint(e["address"]), short=short(e["address"])))
+    return out
+
+
+def load_one(run_dir, address):
+    return _load_dir(addr_dir(run_dir, normalize(address)))

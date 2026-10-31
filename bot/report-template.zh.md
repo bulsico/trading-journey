@@ -1,13 +1,19 @@
 # 交易来时路 · 报告模板（中文）
 
-Chat report template used by `bot/SKILL.md` step 7. All data comes from the files
-`bin/lsl compute` writes to `$DATA/out/`; the bot never computes a number itself.
+Chat report template used by `bot/SKILL.md` step 7 (Chinese; the English one is
+`report-template.en.md`, same structure). All data comes from the files
+`bin/lsl compute --scope <scope> --lang zh` writes to `$OUT` (= `$DATA/out/<scope-slug>/`);
+the bot never computes a number itself.
 所有数字都由 `bin/lsl`（Python 标准库，确定性输出）计算。你只负责解读，不要自己算任何数字。
 
 ---
 
-## 第一步：字段对照（summary.json）
+## 第一步：字段对照（summary.json，以及 page.json 里已格式化好的展示字段）
 
+- TL;DR：`page.json` → `tldr`（3-5 行，原样照抄，不改数字）
+- 分析范围：`summary.scope.label`（例如「全部账户」「Robinhood Roth IRA …1234」「0xabcd…1234」）；`summary.sources`（rh / hl）；Hyperliquid 地址只用 `summary.hl_addresses[].label`（短地址或用户起的名字）
+- 交易者档案：`page.json` → `profile.by[profile.default]`：`facts[]`（最长连胜、持仓时长、交易风格、盈亏层级、仓位体量、多空偏好，`value` 已含 emoji）、`strip_display`（最近 50 笔 🟩/🟥）、`periods`（7D/30D/90D/ALL 的净盈亏、最大回撤、胜率、Sharpe、Sortino、成交额、笔数；`-` 表示数据不足）。原始数值在 `summary.profile.{all,rh,hl}`
+- 分享卡：`bin/lsl card --scope <scope> --lang zh --png` 生成的 `share-card.png`（或 `.svg`），附在报告里
 
 - 基本档案：`overall.period.{from,to,days}`、`overall.fills`、`overall.unique_assets`、`overall.liquidations`
 - 交易统计：`overall.win_rate`、`overall.avg_win`、`overall.avg_loss`、`overall.profit_factor_ratio`、`overall.net_pnl`
@@ -42,17 +48,24 @@ Chat report template used by `bot/SKILL.md` step 7. All data comes from the file
 
 > 用AI蒸馏你的交易历史，回望你走过的每一步
 
+## ⚡ TL;DR
+
+{page.json 的 tldr，每行一条，原样照抄}
+
+{附上分享卡图片}
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ## 📋 基本档案
 
 | 项目 | 数据 |
 |------|------|
-| 分析地址 | `{address 前8位}...` |
+| 分析范围 | {scope.label} |
+| 数据来源 | {Robinhood 账户（只用 …后四位标签）和/或 Hyperliquid 短地址；没有的来源不写} |
 | 分析周期 | {from} → {to}（{days} 天） |
 | 总成交笔数 | {totalFills} 笔 |
 | 交易资产数 | {uniqueAssets} 个 |
-| 爆仓次数 | {liquidations} 次 |
+| 爆仓次数 | {liquidations} 次（只有包含 Hyperliquid 时才写这一行） |
 
 ## 📊 交易统计
 
@@ -64,6 +77,18 @@ Chat report template used by `bot/SKILL.md` step 7. All data comes from the file
 | 盈亏比 | {overall.profit_factor_ratio} |
 
 {用1句话点评胜率和盈亏比的组合，例如胜率高但盈亏比低说明什么，或者反过来}
+
+## 📇 交易者档案
+
+{facts 每条一行：「{label}：{value}」，多空偏好后面加上 detail}
+
+最近 50 笔：{strip_display}
+
+| 指标 | 7D | 30D | 90D | 全部 |
+|------|----|-----|-----|------|
+{periods.rows 每行一条，用 usd 列（用户要求只看百分比时用 pct 列）；"-" 原样保留，表示数据不足}
+
+{1句话点评：风格和盈亏层级、近期和全部的反差}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -147,13 +172,15 @@ FOMO抵抗力   {ratings.fomoResistance 个实心方块}  {ratings.fomoResistanc
 
 ## 📌 当前持仓风险评估
 
-{只有当 openPositions 数组存在且非空时才输出这一节，否则完全跳过，不要提"暂无持仓"之类的话}
+{只有当 open_positions.json 的 hl_perp / hl_spot / rh 至少一个非空时才输出这一节，否则完全跳过，不要提"暂无持仓"之类的话}
 
 {如果有持仓，先输出表格：}
 
 | 资产 | 方向 | 规模 | 入场价 | 浮盈亏 | 杠杆 | 清算价 |
 |------|------|------|--------|--------|------|--------|
-{每个持仓一行，浮盈亏正数写 +$X，负数写 -$X；清算价为 null 时填 "—"}
+{Hyperliquid 永续每个持仓一行，浮盈亏正数写 +$X，负数写 -$X；清算价为 null 时填 "—"}
+
+{Robinhood 持仓（rh）和 HL 现货（hl_spot）另列简表：资产、账户标签、数量、成本；不要写账户完整号码}
 
 {然后对每个持仓结合历史数据评论（1-3句/每个），评论角度：}
 {- 在该资产上的历史胜率（从 byAsset 查）——胜率低就点出来}
@@ -219,7 +246,8 @@ F级  建议认真考虑人生方向
 
 **禁止：**
 - 不要只给正面鼓励，必须指出真实问题
-- 不要捏造数据，所有数字来自 summary.json / open_positions.json，不要自己做加减乘除
+- 不要捏造数据，所有数字来自 summary.json / page.json / open_positions.json，不要自己做加减乘除
+- 不要写完整的账户号码或完整地址，只用 …后四位标签和短地址
 - 不要用过于书面或正式的语言，要有生命力
 - 不要超过1500字，要精炼
 

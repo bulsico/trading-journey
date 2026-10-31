@@ -72,7 +72,9 @@ class FakeRH:
 
     def __init__(self, orders, limit=4000, page=100, crypto_na=True, hist=None,
                  fail=None, mangle=None, positions=None, option_contracts=None, uni_limit=None,
-                 pnl_from=None):
+                 pnl_from=None, accounts=None):
+        self.accounts = accounts or [{"account_number": "TESTACCT1", "rhs_account_number": "RHS1",
+                                      "brokerage_account_type": "individual"}]
         self.orders = orders          # {(account_number, cls): [order]}
         self.limit, self.page = limit, page
         self.crypto_na = crypto_na
@@ -99,8 +101,7 @@ class FakeRH:
         if self.fail and self.fail(tool, args):
             return "Error: upstream timeout\n"
         if tool == "get_accounts":
-            return self._render({"accounts": [{"account_number": "TESTACCT1", "rhs_account_number": "RHS1",
-                                               "brokerage_account_type": "individual"}]})
+            return self._render({"accounts": self.accounts})
         if tool in rhsync.ORDER_TOOLS.values():
             cls = [c for c, t in rhsync.ORDER_TOOLS.items() if t == tool][0]
             acct = args.get("account_number") or args.get("rhs_account_number")
@@ -123,7 +124,8 @@ class FakeRH:
             return self._render({key: sel, "next": None})
         if tool == "get_realized_pnl":
             cls = args["asset_classes"][0]
-            recs = self.orders.get(("TESTACCT1", cls), [])
+            num = {a["rhs_account_number"]: a["account_number"] for a in self.accounts}
+            recs = self.orders.get((num.get(args.get("account_number"), "TESTACCT1"), cls), [])
             from lsl import rhmodel
             daily = "start_date" in args
             counts = rhmodel.closing_counts(cls, recs, "2100-01-01T00:00:00Z", daily=daily)
@@ -145,6 +147,10 @@ class FakeRH:
             return self._render({"results": sel}, limit=self.uni_limit or 10 ** 7)
         if tool in rhsync.POS_TOOLS.values():
             cls = [c for c, t in rhsync.POS_TOOLS.items() if t == tool][0]
+            first = self.accounts[0]
+            if (args.get("account_number") or args.get("rhs_account_number")) not in (
+                    first["account_number"], first["rhs_account_number"]):
+                return self._render({"results": [], "next": None}, limit=10 ** 7)
             return self._render({"results": self.positions.get(cls, []), "next": None}, limit=10 ** 7)
         raise AssertionError(tool)
 
@@ -154,7 +160,8 @@ def drive(run_dir, server, max_rounds=3000, max_calls=8, now="2026-01-01T00:00:0
     """The bot loop: plan -> execute verbatim -> save -> ingest, until done."""
     run = rhsync.Run(run_dir)
     for i in range(max_rounds):
-        res = rhsync.plan(run, max_calls, now=to_utc(now), option_universe=option_universe)
+        res = rhsync.plan(run, max_calls, now=to_utc(now), option_universe=option_universe,
+                          namespace="test-robinhood")
         option_universe = None
         if res["status"] == "done":
             return res, i

@@ -53,8 +53,8 @@ VENUE_LABELS = {"rh_equity": "Robinhood Stocks", "rh_option": "Robinhood Options
 
 def venue_label(v):
     if v.startswith("hl_dex:"):
-        return "Hyperliquid %s perps (HIP-3)" % v.split(":", 1)[1]
-    return VENUE_LABELS.get(v, v)
+        return _("Hyperliquid %s perps (HIP-3)") % v.split(":", 1)[1]
+    return _(VENUE_LABELS.get(v, v))
 FLAG_LABELS = {
     "losing_track_record": "losing track record on this asset",
     "no_track_record": "no closed trades on this asset yet",
@@ -66,6 +66,21 @@ FLAG_LABELS = {
     "no_mark_price": "no mark price fetched, value unknown",
     "near_liquidation": "within 15% of liquidation",
 }
+
+
+# ---------------------------------------------------------------- language
+# Every user-facing string below is written in English and passed through _();
+# labels/<lang>.json "page" maps it to the target language (en maps to itself).
+_L = {}
+
+
+def set_lang(lang):
+    global _L
+    _L = persona.labels(lang).get("page", {})
+
+
+def _(s):
+    return _L.get(s, s)
 
 
 # ---------------------------------------------------------------- formatting
@@ -103,7 +118,7 @@ def qty(x):
 
 
 def plural(n, word):
-    return "%s %s%s" % (num(n), word, "" if n == 1 else "s")
+    return _("%s " + word + ("" if n == 1 else "s")) % num(n)
 
 
 def tone(x):
@@ -144,7 +159,7 @@ def month_seq(a, b):
 
 
 def mlabel(m):
-    return "%s %s" % (MONTHS[int(m[5:7]) - 1], m[2:4])
+    return _("{mon} {yy}").format(mon=_(MONTHS[int(m[5:7]) - 1]), yy=m[2:4])
 
 
 # ---------------------------------------------------------------- sections
@@ -157,33 +172,41 @@ def _scope_row(key, name, s, approx_trades=None):
             "net_incl_funding_display": money(s["net_pnl_incl_funding"], True),
             "closed_trades": s["closed_trades"], "fills": s["fills"],
             "win_rate_display": pct(s["win_rate"]), "payoff_display": num(s["profit_factor_ratio"], 2),
-            "fees_display": money(s["fees"]), "period_display": "%s to %s" % (s["period"]["from"], s["period"]["to"]),
+            "fees_display": money(s["fees"]), "period_display": _("%s to %s") % (s["period"]["from"], s["period"]["to"]),
             "fifo_trades": fifo, "fifo_share_display": pct(r4(fifo / tot) if tot else 0.0)}
 
 
 def _headline(sm):
     o, p = sm["overall"], sm["persona"]
-    return [
-        {"label": "Net realized P&L", "value": money_k(o["net_pnl"], True), "exact": money(o["net_pnl"], True),
-         "detail": "after fees, before HL funding", "tone": tone(o["net_pnl"])},
-        {"label": "Incl. HL funding", "value": money_k(o["net_pnl_incl_funding"], True),
+    has_hl = bool(sm["sources"].get("hl"))
+    items = [
+        {"id": "net", "label": _("Net realized P&L"), "value": money_k(o["net_pnl"], True),
+         "exact": money(o["net_pnl"], True),
+         "detail": _("after fees, before HL funding") if has_hl else _("after fees"), "tone": tone(o["net_pnl"])},
+        {"id": "net_funding", "label": _("Incl. HL funding"), "value": money_k(o["net_pnl_incl_funding"], True),
          "exact": money(o["net_pnl_incl_funding"], True),
-         "detail": "funding " + money(o["funding"], True), "tone": tone(o["net_pnl_incl_funding"])},
-        {"label": "Win rate", "value": pct(o["win_rate"]), "detail": "%s wins / %s losses" % (num(o["wins"]), num(o["losses"]))},
-        {"label": "Avg win / avg loss", "value": num(o["profit_factor_ratio"], 2),
-         "detail": "%s vs %s" % (money(o["avg_win"]), money(o["avg_loss"])),
+         "detail": _("funding") + " " + money(o["funding"], True), "tone": tone(o["net_pnl_incl_funding"])},
+        {"id": "win_rate", "label": _("Win rate"), "value": pct(o["win_rate"]),
+         "detail": _("%s wins / %s losses") % (num(o["wins"]), num(o["losses"]))},
+        {"id": "payoff", "label": _("Avg win / avg loss"), "value": num(o["profit_factor_ratio"], 2),
+         "detail": _("%s vs %s") % (money(o["avg_win"]), money(o["avg_loss"])),
          "tone": "danger" if (o["profit_factor_ratio"] or 0) < 1 else "success"},
-        {"label": "Closed trades", "value": num(o["closed_trades"]), "detail": "%s fills" % num(o["fills"])},
-        {"label": "Assets traded", "value": num(o["unique_assets"]), "detail": "%s days of history" % num(o["period"]["days"])},
-        {"label": "Fees paid", "value": money_k(o["fees"]), "exact": money(o["fees"])},
-        {"label": "Liquidation fills", "value": num(o["liquidations"]),
-         "detail": "%s trades ended in liquidation" % num(o["liquidated_trades"]),
+        {"id": "trades", "label": _("Closed trades"), "value": num(o["closed_trades"]),
+         "detail": _("%s fills") % num(o["fills"])},
+        {"id": "assets", "label": _("Assets traded"), "value": num(o["unique_assets"]),
+         "detail": _("%s days of history") % num(o["period"]["days"])},
+        {"id": "fees", "label": _("Fees paid"), "value": money_k(o["fees"]), "exact": money(o["fees"])},
+        {"id": "liquidations", "label": _("Liquidation fills"), "value": num(o["liquidations"]),
+         "detail": _("%s trades ended in liquidation") % num(o["liquidated_trades"]),
          "tone": "danger" if o["liquidations"] else None},
-        {"label": "Median hold", "value": "%s days" % num(o["holding"]["median_days"], 1),
-         "detail": "average %s days" % num(o["holding"]["avg_days"], 1)},
-        {"label": "Busiest day", "value": "%s fills" % num(o["peak_fills_in_one_day"]), "detail": o["peak_fills_date"]},
-        {"label": "Grade", "value": p["grade"], "detail": None},
+        {"id": "hold", "label": _("Median hold"), "value": _("%s days") % num(o["holding"]["median_days"], 1),
+         "detail": _("average %s days") % num(o["holding"]["avg_days"], 1)},
+        {"id": "busiest", "label": _("Busiest day"), "value": _("%s fills") % num(o["peak_fills_in_one_day"]),
+         "detail": o["peak_fills_date"]},
+        {"id": "grade", "label": _("Grade"), "value": p["grade"], "detail": None},
     ]
+    # funding and liquidations exist only on Hyperliquid
+    return [h for h in items if has_hl or h["id"] not in ("net_funding", "liquidations")]
 
 
 def _persona(sm, lang):
@@ -201,22 +224,51 @@ def _persona(sm, lang):
             "ratings": ratings, "scores": scores}
 
 
+def _lines(se):
+    """Which series the charts draw: rh + hl when both exist, one per HL address when HL is
+    split by address and alone, otherwise just "all"."""
+    mon = se["monthly"]
+    has = [x for x in ("rh", "hl") if mon.get(x)]
+    if len(has) == 2:
+        return ["rh", "hl"]
+    sub = sorted(x for x in mon if x.startswith("hl.") and mon[x])
+    if has == ["hl"] and len(sub) > 1:
+        return sub
+    return []
+
+
+def line_label(key):
+    if key == "all":
+        return _("All sources")
+    if key == "rh":
+        return "Robinhood"
+    if key == "hl":
+        return "Hyperliquid"
+    if key.startswith("hl."):
+        return "HL " + key[3:]
+    return key
+
+
 def _journey(se):
     mon = se["monthly"]
-    scopes = [s for s in ("all", "rh", "hl") if mon.get(s)]
-    first = min(r["month"] for s in scopes for r in mon[s])
-    last = max(r["month"] for s in scopes for r in mon[s])
-    months = month_seq(first, last)
+    lines = _lines(se)
+    scopes = ["all"] + lines
+    rows = [r["month"] for s_ in scopes for r in mon.get(s_) or []]
+    if not rows:
+        return {"labels": [], "unit": "K", "lines": [], "cumulative_k": {"all": []}, "monthly_net_k": {"all": []},
+                "windows": [], "peak": None, "low": None, "drawdown_from_peak_display": "-",
+                "recent": {"start": 0, "labels": [], "ceiling": 0.0, "floor": 0.0}}
+    months = month_seq(min(rows), max(rows))
     cum, net = {}, {}
-    for s in scopes:
-        by = {r["month"]: r for r in mon[s]}
+    for s_ in scopes:
+        by = {r["month"]: r for r in mon.get(s_) or []}
         c, cl, nl = 0.0, [], []
         for m in months:
             if m in by:
                 c = by[m]["cumulative"]
             cl.append(k(c))
             nl.append(k(by[m]["net_pnl"]) if m in by else 0.0)
-        cum[s], net[s] = cl, nl
+        cum[s_], net[s_] = cl, nl
     allc = cum["all"]
     peak_i = max(range(len(months)), key=lambda i: (allc[i], -i))
     low_i = min(range(len(months)), key=lambda i: (allc[i], i))
@@ -226,23 +278,29 @@ def _journey(se):
         m = [x for x in months[:i + 1] if x in by_all]
         return by_all[m[-1]]["cumulative"] if m else 0.0
 
-    windows = []
-    for wid, label, start in (("all", "Full history", months[0]), ("recent", "Since 2024", "2024-01")):
+    windows = [("all", _("Full history"), months[0])]
+    # a "recent" zoom only when there are 3+ years: the last two calendar years
+    if len(months) > 36:
+        start = "%04d-01" % (int(months[-1][:4]) - 1)
+        windows.append(("recent", _("Since %s") % start[:4], start))
+    out_w = []
+    for wid, label, start in windows:
         si = months.index(start) if start in months else 0
-        vals = [v for s in scopes for v in cum[s][si:]]
-        notes = [{"at": i - si, "label": lab} for i, lab in ((peak_i, None), (low_i, None)) if i >= si]
-        windows.append(dict({"id": wid, "label": label, "start": si, "annotations": notes}, **axis(vals)))
-    peak_label = "Peak %s (%s)" % (money_k(cum_exact(peak_i), True), mlabel(months[peak_i]))
-    low_label = "Low %s (%s)" % (money_k(cum_exact(low_i), True), mlabel(months[low_i]))
-    for w in windows:
+        vals = [v for s_ in scopes for v in cum[s_][si:]]
+        notes = [{"at": i - si, "label": None} for i in (peak_i, low_i) if i >= si]
+        out_w.append(dict({"id": wid, "label": label, "start": si, "annotations": notes}, **axis(vals)))
+    peak_label = _("Peak %s (%s)") % (money_k(cum_exact(peak_i), True), mlabel(months[peak_i]))
+    low_label = _("Low %s (%s)") % (money_k(cum_exact(low_i), True), mlabel(months[low_i]))
+    for w in out_w:
         for n in w["annotations"]:
             n["label"] = peak_label if n["at"] == peak_i - w["start"] else low_label
     recent = months[-RECENT_MONTHS:]
     ri = len(months) - len(recent)
-    mvals = [v for s in ("rh", "hl") if s in net for v in net[s][ri:]]
+    mvals = [v for s_ in (lines or ["all"]) for v in net[s_][ri:]]
     return {
         "labels": [mlabel(m) for m in months], "unit": "K",
-        "cumulative_k": cum, "monthly_net_k": net, "windows": windows,
+        "lines": [{"key": x, "label": line_label(x)} for x in (lines or ["all"])],
+        "cumulative_k": cum, "monthly_net_k": net, "windows": out_w,
         "peak": {"index": peak_i, "month": months[peak_i], "display": money(cum_exact(peak_i), True),
                  "label": peak_label},
         "low": {"index": low_i, "month": months[low_i], "display": money(cum_exact(low_i), True),
@@ -256,12 +314,16 @@ def _years(se):
     mon = se["monthly"]
     out = []
     years = sorted({r["month"][:4] for r in mon["all"]})
+    cols = ["all"] + _lines(se)
     for y in years:
-        row = {"year": y}
-        for s in ("all", "rh", "hl"):
+        row = {"year": y, "cells": []}
+        for s in cols:
             rs = [r for r in mon.get(s, []) if r["month"][:4] == y]
-            row[s + "_net"] = r2(math.fsum(r["net_pnl"] for r in rs))
-            row[s + "_net_display"] = money(row[s + "_net"], True) if rs else "-"
+            v = r2(math.fsum(r["net_pnl"] for r in rs))
+            row[s + "_net"] = v
+            row[s + "_net_display"] = money(v, True) if rs else "-"
+            if s != "all":
+                row["cells"].append({"key": s, "display": money(v, True) if rs else "-", "tone": tone(v)})
         rs = [r for r in mon["all"] if r["month"][:4] == y]
         ct = sum(r["closed_trades"] for r in rs)
         w = sum(r["wins"] for r in rs)
@@ -272,8 +334,12 @@ def _years(se):
     return out
 
 
+def _years_cols(se):
+    return [{"key": x, "label": line_label(x)} for x in _lines(se)]
+
+
 def _asset_row(a):
-    return {"asset": a["asset"], "src": SRC_LABELS[a["src"]], "cls": CLS_LABELS.get(a["cls"], a["cls"]),
+    return {"asset": a["asset"], "src": SRC_LABELS[a["src"]], "cls": _(CLS_LABELS.get(a["cls"], a["cls"])),
             "net_display": money(a["net_pnl"], True), "net_k": k(a["net_pnl"]),
             "tone": tone(a["net_pnl"]), "closed_trades": a["closed_trades"], "win_rate_display": pct(a["win_rate"]),
             "biggest_win_display": money(a["biggest_win"], True) if a["wins"] else "-",
@@ -300,7 +366,7 @@ def _group_row(g):
             vr["multiplier_display"] = "x%d" % v["multiplier"]
         venues.append(vr)
     return dict(_group_cells(g), group=g["group"], symbol=g["symbol"],
-                kind=KIND_GROUP_LABELS.get(g["kind"], g["kind"]), venue_count=g["venue_count"],
+                kind=_(KIND_GROUP_LABELS.get(g["kind"], g["kind"]) or "-"), venue_count=g["venue_count"],
                 title="%s · %s · %s" % (g["symbol"], money(g["net_pnl"], True),
                                         plural(g["venue_count"], "venue")),
                 venues=venues)
@@ -336,7 +402,7 @@ def _assets(se):
         net = r2(math.fsum(a["net_pnl"] for a in rows))
         ct = sum(a["closed_trades"] for a in rows)
         w = sum(a["wins"] for a in rows)
-        classes.append({"label": "%s %s" % (SRC_LABELS[src], CLS_LABELS.get(cls, cls)), "net_pnl": net,
+        classes.append({"label": "%s %s" % (SRC_LABELS[src], _(CLS_LABELS.get(cls, cls))), "net_pnl": net,
                         "net_display": money(net, True), "net_k": k(net), "tone": tone(net),
                         "assets": len(rows), "closed_trades": ct, "fills": sum(a["fills"] for a in rows),
                         "win_rate_display": pct(r4(w / ct)) if ct else "-"})
@@ -349,39 +415,40 @@ def _assets(se):
 def _activity(se, sm):
     wd = sorted(se["activity"]["weekday"], key=lambda r: r["weekday"])
     tot = sum(r["fills"] for r in wd)
-    weekday = [{"label": WEEKDAYS[r["weekday"]], "value": r["fills"], "display": num(r["fills"]),
+    weekday = [{"label": _(WEEKDAYS[r["weekday"]]), "value": r["fills"], "display": num(r["fills"]),
                 "share_display": pct(r4(r["fills"] / tot) if tot else 0.0)} for r in wd]
     mon = {r["month"]: r for r in se["monthly"]["all"]}
     years = sorted({m[:4] for m in mon})
     heat = [[mon.get("%s-%02d" % (y, i), {}).get("fills", 0) for i in range(1, 13)] for y in years]
-    busiest = sorted(mon.values(), key=lambda r: (-r["fills"], r["month"]))[0]
+    busiest = (sorted(mon.values(), key=lambda r: (-r["fills"], r["month"])) or [None])[0]
     hold = []
     for h in se["holding_times"]:
-        hold.append({"label": HOLD_LABELS.get(h["bucket"], h["bucket"]), "trades": h["trades"],
+        hold.append({"label": _(HOLD_LABELS.get(h["bucket"], h["bucket"])), "trades": h["trades"],
                      "realized_pnl": h["realized_pnl"], "pnl_display": money(h["realized_pnl"], True),
                      "pnl_k": k(h["realized_pnl"]), "tone": tone(h["realized_pnl"]),
                      "win_rate_display": pct(h["win_rate"]), "trades_display": num(h["trades"])})
     o = sm["overall"]
-    return {"weekday": weekday, "heat_years": years, "heat_months": MONTHS, "heat_fills": heat,
+    return {"weekday": weekday, "heat_years": years, "heat_months": [_(m) for m in MONTHS], "heat_fills": heat,
             "heat_max": max([v for row in heat for v in row] + [0]),
             "busiest_month": {"month": busiest["month"], "label": mlabel(busiest["month"]),
-                              "fills_display": num(busiest["fills"])},
+                              "fills_display": num(busiest["fills"])} if busiest else None,
             "avg_fills_per_day_display": num(o["avg_fills_per_day"], 2),
             "concentration_display": pct(o["concentration"]),
             "holding": hold}
 
 
 def _trade(t):
-    flags = [f for f, on in (("liquidated", t["liquidation"]), ("FIFO estimate", t["approx"]),
-                             ("expired", t["expiry"])) if on]
-    return {"sym": t["sym"], "src": SRC_LABELS[t["src"]], "cls": CLS_LABELS.get(t["cls"], t["cls"]),
-            "side": t["side"], "date": t["date"], "pnl_display": money(t["pnl"], True), "tone": tone(t["pnl"]),
-            "hold_display": ("%s days" % num(t["hold_days"], 1)) if t.get("hold_days") is not None else "-",
+    flags = [_(f) for f, on in (("liquidated", t["liquidation"]), ("FIFO estimate", t["approx"]),
+                                ("expired", t["expiry"])) if on]
+    return {"sym": t["sym"], "src": SRC_LABELS[t["src"]], "cls": _(CLS_LABELS.get(t["cls"], t["cls"])),
+            "acct": t.get("acct"), "side": _(t["side"]), "date": t["date"], "pnl_display": money(t["pnl"], True),
+            "tone": tone(t["pnl"]),
+            "hold_display": (_("%s days") % num(t["hold_days"], 1)) if t.get("hold_days") is not None else "-",
             "flags": flags}
 
 
 def _positions(op, sm):
-    as_of = dt.date.fromisoformat(op["as_of"][:10])
+    as_of = dt.date.fromisoformat((op.get("as_of") or sm.get("as_of") or "1970-01-01")[:10])
     rh = op.get("rh") or []
     eq_cost = {i: r2(p["qty"] * p["avg_price"]) for i, p in enumerate(rh)
                if p["cls"] == "equity" and p["avg_price"] is not None}
@@ -408,29 +475,29 @@ def _positions(op, sm):
                 flags.append("expiring_soon")
             if p["side"] == "short" or (p["avg_price"] or 0) < 0:
                 flags.append("short_premium")
-        rows.append({"acct": p["acct"], "sym": p["sym"], "cls": CLS_LABELS.get(p["cls"], p["cls"]),
-                     "side": p["side"], "qty_display": qty(p["qty"]),
+        rows.append({"acct": p["acct"], "sym": p["sym"], "cls": _(CLS_LABELS.get(p["cls"], p["cls"])),
+                     "side": _(p["side"]), "qty_display": qty(p["qty"]),
                      "avg_price_display": money(p["avg_price"]) if p["avg_price"] is not None else "n/a",
                      "cost_basis_display": money(eq_cost[i]) if i in eq_cost else "-",
                      "share_display": pct(share) if share is not None else "-",
                      "expiration": p.get("expiration"), "days_to_expiry": dte,
                      "history_display": ("%s, %s" % (plural(h["closed_trades"], "trade"), money(h["net_pnl"], True))
-                                         if h and h["closed_trades"] else "none"),
+                                         if h and h["closed_trades"] else _("none")),
                      "history_tone": tone(h["net_pnl"]) if h else None,
                      "flags": flags})
     spot = []
     for s in op.get("hl_spot") or []:
         flags = ["no_mark_price"] + (["near_zero_cost"] if s["entry_notional"] < 1 else [])
-        spot.append({"coin": s["coin"], "qty_display": qty(s["total"]), "entry_display": money(s["entry_notional"]),
+        spot.append({"acct": s.get("acct"), "coin": s["coin"], "qty_display": qty(s["total"]), "entry_display": money(s["entry_notional"]),
                      "flags": flags})
     perp = []
     for s in op.get("hl_perp") or []:
         flags = ["near_liquidation"] if s.get("liq_distance_pct") is not None and s["liq_distance_pct"] < LIQ_NEAR_PCT else []
-        perp.append({"coin": s["coin"], "side": s["side"], "size_display": qty(s["size"]),
+        perp.append({"acct": s.get("acct"), "coin": s["coin"], "side": _(s["side"]), "size_display": qty(s["size"]),
                      "entry_display": money(s.get("entry_px")), "mark_display": money(s.get("mark_px")),
                      "leverage_display": "%sx" % num(s.get("leverage") or 0),
                      "upnl_display": money(s.get("unrealized_pnl"), True), "upnl_tone": tone(s.get("unrealized_pnl")),
-                     "liq_distance_display": pct((s["liq_distance_pct"] or 0) / 100.0) if s.get("liq_distance_pct") is not None else "n/a",
+                     "liq_distance_display": pct((s["liq_distance_pct"] or 0) / 100.0) if s.get("liq_distance_pct") is not None else _("n/a"),
                      "flags": flags})
     fc = defaultdict(int)
     for r in rows + spot + perp:
@@ -441,22 +508,23 @@ def _positions(op, sm):
                        "rh_equity": sum(1 for p in rh if p["cls"] == "equity"),
                        "rh_option": sum(1 for p in rh if p["cls"] == "option")},
             "rh_equity_cost_basis_display": money(eq_total),
-            "flag_counts": [{"flag": f, "label": FLAG_LABELS[f], "count": fc[f]} for f in sorted(fc)]}
+            "flag_counts": [{"flag": f, "label": _(FLAG_LABELS[f]), "count": fc[f]} for f in sorted(fc)]}
 
 
 def _dq(dq, sm):
     checks = []
     for c in dq["checks"]:
-        scope, _, name = c["name"].rpartition(".")
+        scope, _sep, name = c["name"].rpartition(".")
         d = c["detail"]
-        checks.append({"name": c["name"], "scope": scope, "label": CHECK_LABELS.get(name, name),
+        checks.append({"name": c["name"], "scope": scope, "label": _(CHECK_LABELS.get(name, name)),
                        "pass": c["pass"], "required": c["required"],
                        "detail": ", ".join("%s %s" % (key.replace("_", " "), d[key]) for key in sorted(d))})
     accts = []
     for a in (dq.get("rh") or {}).get("accounts", []):
         n = sum(a["fills"].values())
         g = a.get("gains") or {}
-        accts.append({"tag": a["tag"], "kind": KIND_LABELS.get(a["kind"], a["kind"]), "fills": n,
+        accts.append({"tag": a["tag"], "kind": _(KIND_LABELS.get(a["kind"], a["kind"])), "fills": n,
+                      "label": ((sm.get("scope") or {}).get("rh_account_labels") or {}).get(a["tag"]) or a["tag"],
                       "coverage_start": a["coverage_start"] or "-",
                       "fifo_before": g.get("fifo_closes_before_coverage", 0),
                       "rh_sourced": g.get("fifo_closes_rh_sourced", 0),
@@ -466,7 +534,7 @@ def _dq(dq, sm):
                       "positions_mismatch": a["positions_reconciliation"]["mismatch"],
                       "fifo_open_without_position": a["positions_reconciliation"]["fifo_open_without_position"]})
     gs = sm["overall"]["gain_sources"]
-    gains = [{"source": key, "label": GAIN_LABELS.get(key, key), "trades": v["trades"],
+    gains = [{"source": key, "label": _(GAIN_LABELS.get(key, key)), "trades": v["trades"],
               "pnl_display": money(v["realized_pnl"], True), "tone": tone(v["realized_pnl"]),
               "share_display": pct(v["share"])} for key, v in sorted(gs.items())]
     h = dq.get("hl") or {}
@@ -477,25 +545,30 @@ def _dq(dq, sm):
     hc = h.get("counts") or {}
     nb = sum(a["no_cost_basis"] for a in accts)
     mism = sum(a["positions_mismatch"] + a["fifo_open_without_position"] for a in accts)
-    gaps = [
-        {"title": "Dividends and interest", "detail": "Not fetched; realized P&L excludes them."},
-        {"title": "Transfers in/out", "detail": "%d RH closes had no cost basis (shares likely transferred in); "
-                                                 "%d HL deposit/withdraw/transfer ledger events are not P&L."
-                                                 % (nb, transfers)},
-        {"title": "Splits and corporate actions", "detail": "Not modelled in FIFO; %d RH position lots disagree with FIFO." % mism},
-        {"title": "Option assignment / exercise", "detail": "Expiries are modelled (%d expiry closes); "
-                                                            "assignment and exercise are not." % sum(a["expiry_closes"] for a in accts)},
-        {"title": "HL vaults and airdrops", "detail": "%d vault ledger events excluded from P&L; %d airdrop (genesis) events; "
-                                                      "%d airdrop sell fills excluded." % (vault, hc.get("airdrop_genesis_events", 0),
-                                                                                        hc.get("airdrop_sell_fills_excluded", 0))},
-        {"title": "HL spot junk filter", "detail": "Only HYPE and Unit-bridged spot tokens count (matched by spotMeta "
-                                                   "token index + tokenId); %d other spot fills (%d closing trades) "
-                                                   "and %d spot balances excluded."
-                                                   % (hc.get("spot_fills_excluded_not_whitelisted", 0),
-                                                      hc.get("spot_trades_excluded_not_whitelisted", 0),
-                                                      (h.get("spot_whitelist") or {}).get("excluded_spot_balances", 0))},
-        {"title": "Unrealized P&L", "detail": "No mark prices fetched for RH or HL spot holdings; open positions show cost only."},
-    ]
+    has_rh, has_hl = bool(sm["sources"].get("rh")), bool(sm["sources"].get("hl"))
+    gaps = [{"title": _("Dividends and interest"), "detail": _("Not fetched; realized P&L excludes them.")}]
+    if has_rh:
+        gaps += [
+            {"title": _("Transfers in/out"), "detail": _("%d RH closes had no cost basis (shares likely transferred in).") % nb},
+            {"title": _("Splits and corporate actions"),
+             "detail": _("Not modelled in FIFO; %d RH position lots disagree with FIFO.") % mism},
+            {"title": _("Option assignment / exercise"),
+             "detail": _("Expiries are modelled (%d expiry closes); assignment and exercise are not.")
+             % sum(a["expiry_closes"] for a in accts)}]
+    if has_hl:
+        gaps += [
+            {"title": _("HL transfers"), "detail": _("%d HL deposit/withdraw/transfer ledger events are not P&L.") % transfers},
+            {"title": _("HL vaults and airdrops"),
+             "detail": _("%d vault ledger events excluded from P&L; %d airdrop (genesis) events; "
+                         "%d airdrop sell fills excluded.") % (vault, hc.get("airdrop_genesis_events", 0),
+                                                              hc.get("airdrop_sell_fills_excluded", 0))},
+            {"title": _("HL spot junk filter"),
+             "detail": _("Only HYPE and Unit-bridged spot tokens count (matched by spotMeta token index + tokenId); "
+                         "%d other spot fills (%d closing trades) and %d spot balances excluded.")
+             % (hc.get("spot_fills_excluded_not_whitelisted", 0), hc.get("spot_trades_excluded_not_whitelisted", 0),
+                (h.get("spot_whitelist") or {}).get("excluded_spot_balances", 0))}]
+    gaps.append({"title": _("Unrealized P&L"),
+                 "detail": _("No mark prices fetched for RH or HL spot holdings; open positions show cost only.")})
     ag = dq.get("asset_grouping") or {}
     first = sorted(a["coverage_start"] for a in accts if a["coverage_start"] != "-")
     return {"pass": dq["pass"], "checks": checks,
@@ -504,7 +577,7 @@ def _dq(dq, sm):
             "checks_total": len(checks), "rh_accounts": accts, "gain_sources": gains,
             "rh_coverage_start": first[0] if first else None,
             "approx_trades": sm["approximate"]["trades"], "approx_share_display": pct(sm["approximate"]["share"]),
-            "hl": {"fills_raw": h.get("fills_raw", 0), "fills_used": h.get("fills_used", 0),
+            "hl": None if not has_hl else {"fills_raw": h.get("fills_raw", 0), "fills_used": h.get("fills_used", 0),
                    "funding_events": h.get("funding_events", 0), "dust_fills_excluded": hc.get("dust_fills_excluded", 0),
                    "liquidation_fills_self": h.get("liquidation_fills_self", 0),
                    "spot_fills_excluded": hc.get("spot_fills_excluded_not_whitelisted", 0),
@@ -512,29 +585,54 @@ def _dq(dq, sm):
             "grouping": {"groups": ag.get("groups", 0), "multi_venue": ag.get("multi_venue_groups", 0),
                          "ambiguous_count": ag.get("ambiguous_count", 0),
                          "ambiguous": [dict(a, venue_label=venue_label(a["venue"]),
-                                            reason_label=a["reason"].replace("_", " ")) for a in ag.get("ambiguous", [])],
+                                            reason_label=_(a["reason"].replace("_", " "))) for a in ag.get("ambiguous", [])],
                          "collisions": [" / ".join(c) for c in ag.get("symbol_kind_collisions", [])]},
             "gaps": gaps}
 
 
-def build(sm, se, op, dq, lang="en"):
+def _scopes(sm, dq):
     o = sm["overall"]
-    scopes = [_scope_row("all", "All sources", o)]
+    rows = [_scope_row("all", _("All sources"), o)]
     kinds = {a["tag"]: a["kind"] for a in (dq.get("rh") or {}).get("accounts", [])}
-    for key in sorted(sm["scopes"]):
+    keys = sorted(sm["scopes"])
+    for key in keys:
         if key == "hl":
             name = "Hyperliquid"
         elif key == "rh":
-            name = "Robinhood (all accounts)"
+            name = _("Robinhood (all accounts)")
+        elif key.startswith("hl."):
+            name = "Hyperliquid " + key[3:]
         else:
-            name = "Robinhood " + KIND_LABELS.get(kinds.get(key.split(".")[1]), key)
-        scopes.append(_scope_row(key, name, sm["scopes"][key]))
-    return {
-        "schema": SCHEMA, "as_of": sm["as_of"], "as_of_display": sm["as_of"][:16].replace("T", " ") + " UTC",
-        "period": dict(o["period"], display="%s to %s" % (o["period"]["from"], o["period"]["to"])),
-        "sources": [SRC_LABELS[s] for s in sorted(sm["sources"]) if sm["sources"][s]],
-        "headline": _headline(sm), "persona": _persona(sm, lang), "scopes": scopes,
-        "journey": _journey(se), "years": _years(se), "recent_months": [
+            name = "Robinhood " + _(KIND_LABELS.get(kinds.get(key.split(".")[1]), key))
+        st = sm["scopes"][key]
+        # a scope identical to the total (single source / single account) adds nothing
+        if st["fills"] == o["fills"] and st["closed_trades"] == o["closed_trades"] and r2(st["net_pnl"]) == r2(o["net_pnl"]):
+            continue
+        rows.append(_scope_row(key, name, st))
+    return rows
+
+
+def build(sm, se, op, dq, lang="en"):
+    from . import card as card_mod, report
+    set_lang(lang)
+    o = sm["overall"]
+    src = sm.get("sources") or {}
+    scope = sm.get("scope") or {"id": "all", "kind": "all", "label": None}
+    lines = _lines(se)
+    page = {
+        "schema": SCHEMA, "lang": lang, "as_of": sm["as_of"],
+        "as_of_display": (sm["as_of"] or "")[:16].replace("T", " ") + " UTC",
+        "scope": {"id": scope["id"], "kind": scope.get("kind", "all"),
+                  "label": (scope.get("labels") or {}).get(lang) or scope.get("label") or _("All accounts")},
+        "period": dict(o["period"], display=_("%s to %s") % (o["period"]["from"], o["period"]["to"])),
+        "sources": [SRC_LABELS[s_] for s_ in sorted(src) if src[s_]],
+        "has": {"rh": bool(src.get("rh")), "hl": bool(src.get("hl")),
+                "hl_multi": bool(sm.get("hl_addresses")), "both": bool(src.get("rh")) and bool(src.get("hl")),
+                "trades": bool(o["closed_trades"]), "journey": bool(se["monthly"].get("all")),
+                "rh_coverage": False},
+        "ui": report.ui(lang),
+        "headline": _headline(sm), "persona": _persona(sm, lang), "scopes": _scopes(sm, dq),
+        "journey": _journey(se), "years": _years(se), "year_columns": _years_cols(se), "recent_months": [
             {"label": mlabel(r["month"]), "net_display": money(r["net_pnl"], True), "tone": tone(r["net_pnl"]),
              "closed_trades": r["closed_trades"], "win_rate_display": pct(r["win_rate"]),
              "cumulative_display": money(r["cumulative"], True)} for r in sm["recent_months"]],
@@ -546,11 +644,18 @@ def build(sm, se, op, dq, lang="en"):
         "best_trades": [_trade(t) for t in sm["best_trades"]],
         "worst_trades": [_trade(t) for t in sm["worst_trades"]],
         "positions": _positions(op, sm), "data_quality": _dq(dq, sm),
-        "flag_labels": FLAG_LABELS,
+        "flag_labels": {f: _(v) for f, v in FLAG_LABELS.items()},
     }
+    page["has"]["rh_coverage"] = bool(page["data_quality"]["rh_coverage_start"])
+    page["has"]["multi_line"] = bool(lines)
+    page["profile"] = report.profile_block(sm, lang)
+    page["card"] = card_mod.page_block(sm, se, lang)
+    page["tldr"] = report.tldr(sm, page, lang)
+    return page
 
 
 def run(out_dir, lang="en"):
+    """Rebuild page.json in out_dir from the compute outputs there, in `lang`."""
     docs = {n: read_json(os.path.join(out_dir, n + ".json"))
             for n in ("summary", "series", "open_positions", "data_quality")}
     missing = sorted(n for n, d in docs.items() if d is None)

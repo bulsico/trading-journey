@@ -12,8 +12,15 @@ Guidance for coding agents working in this repo.
   settings calls.
 - Never commit real account data, account numbers, addresses, data dirs or connector results.
   Test fixtures must be synthetic.
-- Bot-facing docs: `bot/SKILL.md` (protocol), `bot/page-template.tsx` (Page),
-  `bot/report-template.zh.md` (Chinese report layout).
+- Bot-facing docs: `bot/SKILL.md` (protocol), `bot/page-template.tsx` (Page, adapts to
+  `D.has`), `bot/report-template.{en,zh}.md` (report layouts, same structure).
+- Sources: 0..N Hyperliquid addresses and optional Robinhood, in any combination. Every
+  output must work for RH only, HL only (one or many addresses) and both: no crashes, NaN
+  or empty sections. Robinhood's namespace is passed with `--namespace`; never hard-code it.
+- Languages: every user-facing string lives in `lsl/labels/{en,zh}.json` with `{named}`
+  placeholders; add a key to both files.
+- Privacy: outputs show masked labels only (`…1234`, short addresses). Examples in docs and
+  tests use synthetic addresses such as `0xabcd…1234`.
 
 Layout:
 
@@ -21,7 +28,12 @@ Layout:
 |---|---|
 | `lsl/cli.py` | CLI |
 | `lsl/rhsync.py`, `lsl/rhmodel.py`, `lsl/rhpage.py` | Robinhood plan/ingest walker and parsing |
-| `lsl/hl.py` | Hyperliquid fetch |
+| `lsl/hl.py` | Hyperliquid address book (add/remove/list) and per-address fetch |
+| `lsl/scope.py` | `--scope` parsing, labels, out-dir slugs |
+| `lsl/profile.py` | trader profile (formulas and thresholds documented in the docstring and README) |
+| `lsl/card.py` | share card SVG, badges, optional PNG |
+| `lsl/report.py` | TL;DR lines |
 | `lsl/fifo.py`, `lsl/compute.py`, `lsl/persona.py` | P&L, stats, persona |
 | `lsl/assets.py`, `lsl/data/` | cross-venue grouping, HL spot whitelist |
-| `lsl/page.py`, `lsl/labels/` | page.json and labels |
+| `lsl/page.py`, `lsl/labels/` | page.json and en/zh labels |
+| `tests/` | synthetic fixtures; `test_sources.py` covers source combinations, scopes, card, profile |

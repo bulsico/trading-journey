@@ -51,7 +51,7 @@ class WhitelistAndGroupsTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp()
         hl.fetch(cls.tmp, ADDR, to_utc("2026-01-01T00:00:00Z"), post=FakeHL(hl_fills(), spot_meta=META))
-        cls.h = compute.load_hl(cls.tmp)
+        cls.h = compute.load_hl(cls.tmp)[0]
         cls.trades, cls.acts, _, cls.dq, cls.pos = compute.hl_process(cls.h)
 
     @classmethod
@@ -126,7 +126,7 @@ class IncrementalTest(unittest.TestCase):
                  post=FakeHL(old + new, funding=fund2, spot_meta=META, page=4))
         hl.fetch(self.d("fresh"), ADDR, to_utc("2026-01-01T00:00:00Z"),
                  post=FakeHL(old + new, funding=fund2, spot_meta=META, page=4))
-        self.assertEqual(len(compute.load_hl(self.d("inc"))["fills"]), 30)
+        self.assertEqual(len(compute.load_hl(self.d("inc"))[0]["fills"]), 30)
         self.assertEqual(_outputs(None, self.d("inc")), _outputs(None, self.d("fresh")))
 
     def test_rh_incremental_equals_fresh(self):

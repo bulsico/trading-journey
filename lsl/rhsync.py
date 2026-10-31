@@ -43,7 +43,10 @@ from .rhpage import (COMPLETE, EMPTY, ERROR, MANGLED, TRUNCATED, classify, mangl
 from .util import (UTC, add_months, et_wall_to_utc, iso, read_json, to_utc,
                    write_json)
 
-NAMESPACE = "user-Robinhood-xai"
+# The connector namespace is whatever the bot discovers (GetDynamicTools, pattern
+# "Robinhood"); it is passed once with --namespace and kept in rh_state.json.
+NO_NAMESPACE = ("pass --namespace <the Robinhood connector namespace>; find it with "
+                "GetDynamicTools pattern 'Robinhood'")
 READ_ONLY_TOOLS = {
     "get_accounts", "get_equity_orders", "get_option_orders", "get_crypto_orders",
     "get_realized_pnl", "get_pnl_trade_history", "get_equity_positions",
@@ -726,10 +729,24 @@ def set_option_universe(run, enabled):
     run.save()
 
 
-def plan(run, max_calls=8, now=None, option_universe=None):
+def set_namespace(run, namespace):
+    """Remember the connector namespace; already planned calls follow it."""
+    run.st["namespace"] = namespace
+    for c in run.st["pending"].values():
+        c["namespace"] = namespace
+    run.save()
+
+
+def plan(run, max_calls=8, now=None, option_universe=None, namespace=None):
     if run.st is None:
+        if not namespace:
+            return {"error": NO_NAMESPACE}
         init_state(run, now or dt.datetime.now(UTC))
     st = run.st
+    if namespace and namespace != st.get("namespace"):
+        set_namespace(run, namespace)
+    if not st.get("namespace"):
+        return {"error": NO_NAMESPACE}
     if option_universe is not None and bool(option_universe) != st.get("opts", {}).get("option_universe"):
         set_option_universe(run, option_universe)
     if st["pending"]:
@@ -757,7 +774,7 @@ def plan(run, max_calls=8, now=None, option_universe=None):
         tool, args = _call_for(st, sid, s)
         assert tool in READ_ONLY_TOOLS, tool
         cid = _cid(st)
-        c = {"id": cid, "stream": sid, "namespace": NAMESPACE, "tool": tool, "args": args,
+        c = {"id": cid, "stream": sid, "namespace": st["namespace"], "tool": tool, "args": args,
              "save_as": os.path.join(run.raw_dir, cid + ".txt")}
         st["pending"][cid] = c
         st["calls_issued"] += 1

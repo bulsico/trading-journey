@@ -70,8 +70,9 @@ def load_rh(run_dir):
         for sid in sorted(mine):
             if mine[sid]["type"] == "optuni":
                 optuni.update(run.load_data(sid, {}))
+        num = str(a.get("account_number") or "")
         accts.append({
-            "tag": tag, "kind": a.get("kind"),
+            "tag": tag, "kind": a.get("kind"), "mask": ("\u2026" + num[-4:]) if len(num) >= 4 else None,
             "coverage": st["flags"].get("coverage:%s" % tag),
             "orders": {c: sorted(rhsync._orders_of(run, tag, c), key=lambda o: o["id"]) for c in CLASSES},
             "positions": {c: run.load_data("%s.pos.%s" % (tag, c), []) for c in CLASSES},
@@ -85,8 +86,25 @@ def load_rh(run_dir):
 
 
 def load_hl(run_dir):
+    """[] or one dict per synced Hyperliquid address (see hl.load)."""
     from . import hl
     return hl.load(run_dir)
+
+
+def sources(run_dir):
+    """What `compute` would use: RH yes/no, the synced HL addresses (short form only), report scopes."""
+    from . import hl, scope as scope_mod
+    rh = load_rh(run_dir)
+    cfg = hl.load_config(run_dir) or []
+    hs = load_hl(run_dir)
+    synced = {h["fingerprint"] for h in hs}
+    lab = hl.labels(cfg)
+    return {"rh": bool(rh), "hl_addresses": len(cfg), "hl_synced": len(hs),
+            "addresses": [{"label": lab[e["address"]], "short": hl.short(e["address"]),
+                           "synced": hl.fingerprint(e["address"]) in synced} for e in cfg],
+            "legacy_hl": bool(hs and not cfg),
+            "scopes": scope_mod.available(rh, hs),
+            "any": bool(rh) or bool(hs)}
 
 
 # ======================================================================= Robinhood
@@ -223,7 +241,8 @@ def rh_account(a, sync_end):
         else:
             q["fifo_closes_dropped_in_coverage"] += 1
     acts = [{"src": "rh", "acct": tag, "cls": f["cls"], "sym": f["sym"], "ts": to_utc(f["ts"]),
-             "fee": f["fee"], "liquidation": False} for f in fills if not f.get("expiry")]
+             "fee": f["fee"], "liquidation": False, "notional": abs(f["qty"] * f["px"])}
+            for f in fills if not f.get("expiry")]
     for t in trades:
         t["day"] = et_day(t["ts"])
     for f in acts:
@@ -366,7 +385,7 @@ def _rh_open_positions(a):
 
 
 # ======================================================================= Hyperliquid
-def hl_process(h, whitelist=None):
+def hl_process(h, whitelist=None, acct="hl"):
     names = h.get("spot_names") or {}
     wl = assets.SpotWhitelist(h.get("spot_meta"), whitelist or assets.load_whitelist())
     raw = sorted(h.get("fills") or [], key=lambda f: (int(f.get("time", 0)), str(f.get("tid"))))
@@ -444,14 +463,15 @@ def hl_process(h, whitelist=None):
         if frac > 0:
             q["airdrop_sell_fills_partial"] += 1
         day = utc_day(n["ts"])
-        acts.append({"src": "hl", "acct": "hl", "cls": "spot" if n["spot"] else "perp", "sym": n["sym"],
-                     "canon": n["canon"], "ts": n["ts"], "day": day, "fee": n["fee"], "liquidation": n["liq"]})
+        acts.append({"src": "hl", "acct": acct, "cls": "spot" if n["spot"] else "perp", "sym": n["sym"],
+                     "canon": n["canon"], "ts": n["ts"], "day": day, "fee": n["fee"], "liquidation": n["liq"],
+                     "notional": abs(n["qty"] * n["px"])})
         if abs(n["pnl"]) <= PNL_EPS:
             continue
         k = (n["coin"], str(n["f"].get("oid")))
         e = agg.get(k)
         if e is None:
-            e = agg[k] = {"src": "hl", "acct": "hl", "cls": "spot" if n["spot"] else "perp",
+            e = agg[k] = {"src": "hl", "acct": acct, "cls": "spot" if n["spot"] else "perp",
                           "sym": n["sym"], "canon": n["canon"], "label": None, "ts": n["ts"], "_p": [], "_q": [], "_h": [],
                           "_hq": [], "liquidation": False, "adl": False, "expiry": False,
                           "side": "long" if n["side"] == "sell" else "short",
@@ -480,7 +500,7 @@ def hl_process(h, whitelist=None):
         ledger_types[str((u.get("delta") or {}).get("type"))] += 1
     q["spot_trades_excluded_not_whitelisted"] = len(junk_orders)
     info = h.get("info") or {}
-    perps, spots, spot_junk = _hl_open_positions(h, wl)
+    perps, spots, spot_junk = _hl_open_positions(h, wl, acct)
     dq = {"spot_whitelist": {"have_spot_meta": wl.have_meta,
                              "spot_fills": sum(1 for f in raw if str(f.get("coin", "")).startswith("@")
                                                or ("/" in str(f.get("coin", "")) and ":" not in str(f.get("coin", "")))), "token_id_mismatch": len(wl.id_mismatch),
@@ -508,7 +528,7 @@ def _fetch_public(info):
     return out
 
 
-def _hl_open_positions(h, wl):
+def _hl_open_positions(h, wl, acct="hl"):
     perps, spots = [], []
     chs = h.get("clearinghouse") or {}
     if "assetPositions" in chs:            # single-dex layout
@@ -523,7 +543,7 @@ def _hl_open_positions(h, wl):
             mark = val / abs(szi) if szi else None
             liq = F(p.get("liquidationPx")) if p.get("liquidationPx") not in (None, "") else None
             lev = p.get("leverage") or {}
-            perps.append({"src": "hl", "dex": dex, "coin": p.get("coin"),
+            perps.append({"src": "hl", "acct": acct, "dex": dex, "coin": p.get("coin"),
                           "side": "long" if szi > 0 else "short", "size": r4(abs(szi)),
                           "entry_px": r4(F(p.get("entryPx"))), "mark_px": r4(mark),
                           "position_value": r2(val), "unrealized_pnl": r2(F(p.get("unrealizedPnl"))),
@@ -543,7 +563,7 @@ def _hl_open_positions(h, wl):
         if not wl.token_ok(tok):
             junk += 1
             continue
-        spots.append({"src": "hl", "coin": b.get("coin"), "underlying": wl.underlying_of_token(tok),
+        spots.append({"src": "hl", "acct": acct, "coin": b.get("coin"), "underlying": wl.underlying_of_token(tok),
                       "total": r4(tot), "entry_notional": r2(F(b.get("entryNtl")))})
     return perps, spots, junk
 
@@ -762,14 +782,36 @@ def compute_all(rh, hl, lang="zh"):
                 scopes["rh." + a["tag"]] = (t, f, 0.0)
         rt = [x for x in trades if x["src"] == "rh"]
         scopes["rh"] = (rt, [x for x in acts if x["src"] == "rh"], 0.0)
+    if isinstance(hl, dict):
+        hl = [dict(hl, tag="hl", label="hl", fingerprint="")]
+    hl = hl or []
+    multi = len(hl) > 1
     if hl:
-        t, f, funding, hdq, (perps, spots) = hl_process(hl)
-        trades += t
-        acts += f
-        dq["hl"] = hdq
-        scopes["hl"] = (t, f, funding)
-        hl_asof = iso(dt.datetime.fromtimestamp(hl["info"]["as_of_ms"] / 1000.0, UTC))
-        as_of = max(as_of, hl_asof) if as_of else hl_asof
+        ht, hf, hdqs = [], [], []
+        for h in hl:
+            tag = h.get("tag", "hl") if multi else "hl"
+            t, f, fund, hdq, (p, sp) = hl_process(h, acct=tag)
+            ht += t
+            hf += f
+            perps += p
+            spots += sp
+            funding += fund
+            hdqs.append(dict(hdq, tag=tag, label=h.get("label", tag)))
+            if multi:
+                scopes["hl." + tag] = (t, f, fund)
+            ms_ = (h.get("info") or {}).get("as_of_ms")
+            if ms_:
+                hl_asof = iso(dt.datetime.fromtimestamp(ms_ / 1000.0, UTC))
+                as_of = max(as_of, hl_asof) if as_of else hl_asof
+        trades += ht
+        acts += hf
+        scopes["hl"] = (ht, hf, funding)
+        if multi:
+            dq["hl"] = dict(_hl_dq_total(hdqs), addresses=hdqs)
+        else:
+            dq["hl"] = {k: v for k, v in hdqs[0].items() if k not in ("tag", "label")}
+        if multi:
+            perps.sort(key=lambda p: (p["acct"], p["dex"], str(p["coin"])))
     trades.sort(key=_trade_key)
     acts.sort(key=lambda f: (f["ts"], f["src"], f["acct"], f["cls"], str(f["sym"]), f["fee"]))
     overall = stats(trades, acts, funding)
@@ -781,7 +823,10 @@ def compute_all(rh, hl, lang="zh"):
     months = by_month(trades, acts)
     summary = {
         "schema": SCHEMA, "as_of": as_of, "lang": lang,
+        "profile": profiles(scopes, trades, acts, funding, as_of),
         "sources": {"rh": bool(rh), "hl": bool(hl)},
+        "hl_addresses": [{"tag": d["tag"], "label": d["label"]} for d in (dq["hl"] or {}).get("addresses", [])]
+        if multi else [],
         "overall": _public(overall),
         "scopes": {k: _public(stats(*v)) for k, v in sorted(scopes.items())},
         "persona": pers,
@@ -819,11 +864,50 @@ def compute_all(rh, hl, lang="zh"):
                                "net_pnl": r["net_pnl"]} if r else None)
     open_pos = {"schema": SCHEMA, "as_of": as_of,
                 "rh": sorted(open_rh, key=lambda p: (p["acct"], p["cls"], str(p["sym"]), str(p.get("expiration")))),
-                "hl_perp": perps, "hl_spot": sorted(spots, key=lambda s: str(s["coin"]))}
+                "hl_perp": perps, "hl_spot": sorted(spots, key=lambda s: (str(s["coin"]), s["acct"]))}
     dq["checks"] = _checks(dq)
     dq["pass"] = all(c["pass"] for c in dq["checks"] if c["required"])
     return {"summary.json": summary, "series.json": series, "open_positions.json": open_pos,
             "data_quality.json": dq}
+
+
+def profiles(scopes, trades, acts, funding, as_of):
+    """Trader profile per top-level scope: all, rh, hl (and hl.<label> with several addresses)."""
+    from . import profile as P
+    day = as_of[:10] if as_of else None
+    out = {"all": P.profile(trades, acts, funding, day)}
+    for k in sorted(scopes):
+        if k in ("rh", "hl") or k.startswith("hl."):
+            out[k] = P.profile(*scopes[k], day)
+    return out
+
+
+def _sum_tree(xs):
+    """Add up per-address quality dicts: numbers sum, dicts merge key-wise."""
+    out = {}
+    for x in xs:
+        for k, v in x.items():
+            if isinstance(v, bool):
+                continue
+            if isinstance(v, (int, float)):
+                out[k] = out.get(k, 0) + v
+            elif isinstance(v, dict):
+                out.setdefault(k, []).append(v)
+    return {k: (_sum_tree(v) if isinstance(v, list) else v) for k, v in sorted(out.items())}
+
+
+def _hl_dq_total(hdqs):
+    """Totals across addresses in the single-address dq shape (counts only; no fetch block)."""
+    keys = ("fills_raw", "fills_used", "closed_trades", "liquidation_fills_self", "adl_fills",
+            "funding_events", "ledger_events", "counts")
+    tot = _sum_tree([{k: d[k] for k in keys} for d in hdqs])
+    for k in keys:
+        tot.setdefault(k, {} if k in ("ledger_events", "counts") else 0)
+    w = _sum_tree([d["spot_whitelist"] for d in hdqs])
+    w["have_spot_meta"] = all(d["spot_whitelist"]["have_spot_meta"] for d in hdqs)
+    w.setdefault("excluded_fill_reasons", {})
+    tot["spot_whitelist"] = w
+    return tot
 
 
 def _checks(dq):
@@ -853,15 +937,19 @@ def _checks(dq):
             p = a["positions_reconciliation"]
             add("rh.%s.fifo_matches_positions" % tag, p["pass"], False,
                 {k: p[k] for k in ("compared", "match", "mismatch", "fifo_open_without_position")})
+    hls = []
     if dq["hl"]:
-        f = dq["hl"]["fetch"].get("fills", {})
-        add("hl.fills_complete", not f.get("possibly_capped") and not f.get("hit_page_limit")
+        hls = [("hl.%s" % a["tag"], a) for a in dq["hl"]["addresses"]] if "addresses" in dq["hl"] \
+            else [("hl", dq["hl"])]
+    for pre, h in hls:
+        f = h["fetch"].get("fills", {})
+        add(pre + ".fills_complete", not f.get("possibly_capped") and not f.get("hit_page_limit")
             and not f.get("possible_tie_gaps"), True,
             {k: f.get(k) for k in ("count", "possible_tie_gaps", "possibly_capped")})
-        add("hl.spot_names_resolved", dq["hl"]["fetch"].get("unresolved_spot_coins", 0) == 0, True,
-            {"unresolved": dq["hl"]["fetch"].get("unresolved_spot_coins", 0)})
-        w = dq["hl"]["spot_whitelist"]
-        add("hl.spot_whitelist_ids_match", (w["have_spot_meta"] or not w["spot_fills"])
+        add(pre + ".spot_names_resolved", h["fetch"].get("unresolved_spot_coins", 0) == 0, True,
+            {"unresolved": h["fetch"].get("unresolved_spot_coins", 0)})
+        w = h["spot_whitelist"]
+        add(pre + ".spot_whitelist_ids_match", (w["have_spot_meta"] or not w["spot_fills"])
             and w["token_id_mismatch"] == 0, True,
             {"have_spot_meta": w["have_spot_meta"], "token_id_mismatch": w["token_id_mismatch"]})
     g = dq.get("asset_grouping")
@@ -871,18 +959,35 @@ def _checks(dq):
     return out
 
 
-def run(run_dir, out_dir=None, lang="zh"):
+def scope_out(run_dir, scope="all"):
+    """Default output dir for a scope (DATA/out/<slug>), resolving aliases like a full address."""
+    from . import scope as scope_mod
+    res = scope_mod.resolve(scope, load_rh(run_dir), load_hl(run_dir))
+    sl = res[2]["slug"] if isinstance(res, tuple) else scope_mod.slug(scope)
+    return os.path.join(run_dir, "out", sl)
+
+
+def run(run_dir, out_dir=None, lang="zh", scope="all"):
+    from . import scope as scope_mod
     rh = load_rh(run_dir)
     hl = load_hl(run_dir)
     if not rh and not hl:
-        return {"error": "no fetched data under %s/state" % run_dir}
-    out_dir = out_dir or os.path.join(run_dir, "out")
+        return {"error": "no sources: add a Hyperliquid address (`lsl hl add 0x...` then `lsl hl fetch`) "
+                         "and/or sync Robinhood (`lsl rh plan --namespace ...`) first",
+                "data_dir": os.path.abspath(run_dir), "sources": sources(run_dir)}
+    res = scope_mod.resolve(scope, rh, hl, lang)
+    if isinstance(res, dict):
+        return res
+    rh, hl, meta = res
+    out_dir = out_dir or os.path.join(run_dir, "out", meta["slug"])
     docs = compute_all(rh, hl, lang)
+    docs["summary.json"]["scope"] = meta
     docs["page.json"] = page.build(docs["summary.json"], docs["series.json"],
                                    docs["open_positions.json"], docs["data_quality.json"], lang)
     for name in sorted(docs):
         write_json(os.path.join(out_dir, name), docs[name])
     dq = docs["data_quality.json"]
-    return {"status": "done", "out": os.path.abspath(out_dir), "files": sorted(docs),
+    return {"status": "done", "scope": meta["id"], "scope_label": meta["label"],
+            "out": os.path.abspath(out_dir), "files": sorted(docs),
             "data_quality_pass": dq["pass"],
             "checks": [{"name": c["name"], "pass": c["pass"]} for c in dq["checks"]]}

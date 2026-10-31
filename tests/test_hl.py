@@ -53,12 +53,12 @@ class PagerTest(unittest.TestCase):
             res = hl.fetch(d, ADDR.upper().replace("0X", "0x"), "2026-01-01T00:00:00Z", post=api)
             info = res["info"]
             self.assertEqual((info["fills"]["count"], info["perp_dexes"], info["unresolved_spot_coins"]), (5, 2, 0))
-            h = hl.load(d)
+            h = hl.load(d)[0]
             self.assertEqual([f["liquidation"]["is_self"] for f in h["fills"] if f.get("liquidation")],
                              [True, False])
             raw = ""
             for name in ("fills", "info"):
-                with open(d + "/state/hl/%s.json" % name) as fh:
+                with open(hl.addr_dir(d, ADDR) + "/%s.json" % name) as fh:
                     raw += fh.read()
             self.assertNotIn(ADDR[2:], raw)
             self.assertNotIn(OTHER[2:], raw)

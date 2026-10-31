@@ -176,8 +176,15 @@ def groups(trades, acts, amap=None):
         c0 = C[keys[0]]
         venues = []
         for k in keys:
-            venues.append(dict(_stats(T.get(k, []), A.get(k, [])), venue=k[0], raw_symbol=k[1],
-                               multiplier=C[k]["multiplier"]))
+            row = dict(_stats(T.get(k, []), A.get(k, [])), venue=k[0], raw_symbol=k[1],
+                       multiplier=C[k]["multiplier"])
+            accts = sorted({x["acct"] for x in T.get(k, []) + A.get(k, [])})
+            if k[0].startswith("hl") and len(accts) > 1:
+                # several Hyperliquid addresses traded this market: per-address split
+                row["by_account"] = [dict(_stats([t for t in T.get(k, []) if t["acct"] == a],
+                                                 [f for f in A.get(k, []) if f["acct"] == a]), acct=a)
+                                     for a in accts]
+            venues.append(row)
         ts = [t for k in keys for t in T.get(k, [])]
         fl = [f for k in keys for f in A.get(k, [])]
         out.append(dict(_stats(ts, fl), group=g, symbol=c0["symbol"], kind=c0["kind"],
