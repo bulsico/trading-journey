@@ -1,4 +1,4 @@
-import { Page, Section, Grid, Metrics, Table, Callout, Rows, Text, Bars, Columns, ColumnSeries, LineChart, Heatmap, Segmented, BulletList, Properties, Image, Select, TableOfContents, useState } from "grok/canvas";
+import { Page, Section, Grid, Metrics, Table, Callout, Rows, Text, Bars, Columns, ColumnSeries, LineChart, Heatmap, Segmented, BulletList, Properties, Image, Select, TableOfContents, useEffect, useState } from "grok/canvas";
 
 // D = trading-journey `bin/lsl page --scope <scope> --lang <lang>` output (out/<scope>/page.json), pasted verbatim.
 // The page only selects and slices; it does no arithmetic on figures. Sections hide themselves via D.has.
@@ -72,6 +72,11 @@ function groupSection(r: any) {
 }
 
 export default function TradingJourney() {
+  // <Page> has no lang prop: tag the document (D.html_lang is "zh-Hans" or "en") so Chinese text gets
+  // CJK fonts and line breaking, and screen readers read it in the right language.
+  useEffect(() => {
+    if (typeof document !== "undefined") document.documentElement.lang = D.html_lang;
+  }, []);
   const J = D.journey as any;
   const [win, setWin] = useState<string>("all");
   const [view, setView] = useState<string>("multi");

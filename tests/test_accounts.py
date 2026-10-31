@@ -82,6 +82,23 @@ class Breakdown(Base):
             self.assertLessEqual(len(pg["tldr"]), 5)
             self.assertTrue(any(str(A["count"]) in line and ("account" in line or "账户" in line) for line in pg["tldr"]))
 
+    def test_zh_wording(self):
+        # the Chinese Page reads as Chinese: document language, full-width punctuation, no stray spaces
+        for lang in ("en", "zh"):
+            res, sm, pg = self.compute(lang=lang)
+            self.assertEqual(pg["html_lang"], "zh-Hans" if lang == "zh" else "en")
+            txt = json.dumps(pg, ensure_ascii=False)
+            ends = "。" if lang == "zh" else "."
+            for ins in pg["accounts"]["insights"]:
+                self.assertTrue(ins["body"].endswith(ends), ins["body"])
+            if lang != "zh":
+                continue
+            self.assertNotIn("传统IRA", txt)
+            self.assertNotIn("笔交易, ", txt)
+            self.assertNotIn("亏了 -$", txt)
+            for line in pg["tldr"]:
+                self.assertNotIn("。 ", line)
+
     def test_per_account_cards(self):
         res, sm, pg = self.compute()
         out = res["out"]

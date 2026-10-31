@@ -43,6 +43,19 @@ class TemplateTest(unittest.TestCase):
         self.assertIn("chat", en["accounts"]["card_in_picker"])
         self.assertIn("聊天", zh["accounts"]["card_in_picker"])
 
+    def test_document_language(self):
+        # the kit's <Page> has no lang prop; the template sets <html lang> from D.html_lang
+        self.assertIn("document.documentElement.lang = D.html_lang", self.t)
+        self.assertIn("useEffect", self.t.split("\n")[0])
+
+    def test_report_templates_use_real_fields(self):
+        # placeholders name real snake_case fields (summary.json / page.json), not old camelCase ones
+        for lang in ("en", "zh"):
+            t = read("bot", "report-template.%s.md" % lang)
+            camel = [w for b in re.findall(r"\{([^{}]*)\}", t) for w in re.findall(r"\b[a-z]+[A-Z]\w*", b) if w != "uPnL"]
+            self.assertEqual(camel, [], lang)
+            self.assertIn("persona.ratings[]", t)
+
     def test_template_keys_exist(self):
         # every U.x / AL.x / L.x the template reads exists in both languages
         refs = {"ui": set(re.findall(r"\bU\.(\w+)", self.t)),

@@ -78,17 +78,17 @@ the bot never computes a number itself.
 | 分析范围 | {scope.label} |
 | 数据来源 | {Robinhood 账户（只用 …后四位标签）和/或 Hyperliquid 短地址；没有的来源不写} |
 | 分析周期 | {from} → {to}（{days} 天） |
-| 总成交笔数 | {totalFills} 笔 |
-| 交易资产数 | {uniqueAssets} 个 |
-| 爆仓次数 | {liquidations} 次（只有包含 Hyperliquid 时才写这一行） |
+| 总成交笔数 | {overall.fills} 笔 |
+| 交易资产数 | {overall.unique_assets} 个 |
+| 爆仓成交 | {overall.liquidations} 笔（只有包含 Hyperliquid 时才写这一行） |
 
 ## 📊 交易统计
 
 | 项目 | 数据 |
 |------|------|
-| 胜率 | {winRate%} |
-| 平均盈利 | +{avgWin} |
-| 平均亏损 | {avgLoss} |
+| 胜率 | {overall.win_rate，写成 XX.X%} |
+| 平均盈利 | +{overall.avg_win} |
+| 平均亏损 | {overall.avg_loss} |
 | 盈亏比 | {overall.profit_factor_ratio} |
 
 {用1句话点评胜率和盈亏比的组合，例如胜率高但盈亏比低说明什么，或者反过来}
@@ -109,21 +109,15 @@ the bot never computes a number itself.
 
 ## 🧬 交易员人格测评
 
-**你的交易员类型：{archetypeLabel}{modifiers}**
+**你的交易员类型：{persona.archetype_label}{persona.modifier_labels}**
 
 {用2-3句话描述这个类型的核心特征，要有代入感，要用"你"而不是"他"}
 
-五维评分：
+五维评分（page.json → `persona.ratings[]`：`label`、`bar`、`display`，原样照抄，不要自己画方块）：
 
 ```
-持仓耐心     {ratings.patience 个实心方块}  {ratings.patience}/10  （{对应的毒舌评语}）
-FOMO抵抗力   {ratings.fomoResistance 个实心方块}  {ratings.fomoResistance}/10  （{评语}）
-止损纪律     {ratings.stopLossDiscipline 个实心方块}  {ratings.stopLossDiscipline}/10  （{评语}）
-趋势感知     {ratings.trendAwareness 个实心方块}  {ratings.trendAwareness}/10  （{评语}）
-越挫越勇     {ratings.resilience 个实心方块}  {ratings.resilience}/10  （{评语}）
+{每项一行：{label}  {bar}  {display}  （{一句毒舌评语}）}
 ```
-
-> 用 █ 代表实心，░ 代表空，例如：████░░░░░░ 4/10
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -149,17 +143,17 @@ FOMO抵抗力   {ratings.fomoResistance 个实心方块}  {ratings.fomoResistanc
 
 > 以下是你的历史性失误，留存备查，以后看到这个清单，希望你能清醒一秒。
 
-{取 worstTrades 前三，每个写一个段落，格式如下：}
+{取 page.json 的 worst_trades 前三，每个写一个段落，格式如下：}
 
-### 🥇 金牌亏损 · {coin} · {pnl}
+### 🥇 金牌亏损 · {sym} · {pnl_display}
 
 > 「{1-2句毒舌评语，具体描述这笔交易怎么亏的，引用真实数据}」
 
-### 🥈 银牌亏损 · {coin} · {pnl}
+### 🥈 银牌亏损 · {sym} · {pnl_display}
 
 > 「{评语}」
 
-### 🥉 铜牌亏损 · {coin} · {pnl}
+### 🥉 铜牌亏损 · {sym} · {pnl_display}
 
 > 「{评语}」
 
@@ -169,7 +163,7 @@ FOMO抵抗力   {ratings.fomoResistance 个实心方块}  {ratings.fomoResistanc
 
 > 不全是坏消息，你也有做对的时候——记住这种感觉。
 
-{取 bestTrades 前2-3名，每个一句话夸奖，但要实事求是不要过度吹捧}
+{取 page.json 的 best_trades 前2-3名，每个一句话夸奖，但要实事求是不要过度吹捧}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -177,7 +171,7 @@ FOMO抵抗力   {ratings.fomoResistance 个实心方块}  {ratings.fomoResistanc
 
 > 数据不说谎。以下是从你的交易记录里提炼出来的行为模式：
 
-{根据 archetypeScores 和 byAsset/byMonth 数据，识别2-3个最显著的行为模式。每个弱点必须有具体数据支撑。}
+{根据 persona.scores 和 by_asset_worst / by_month_worst 数据，识别2-3个最显著的行为模式。每个弱点必须有具体数据支撑。}
 
 ### ❌ 弱点一：{名称}
 {2-3句描述 + 具体数据例证}
@@ -193,7 +187,7 @@ FOMO抵抗力   {ratings.fomoResistance 个实心方块}  {ratings.fomoResistanc
 
 ## 📊 月度成绩单
 
-{取 byMonth 最近12个月（或全部数据如果少于12个月），找出最好和最差的月份，评论关键转折点}
+{用 page.json 的 recent_months（近几个月，带 cumulative_display）、best_months、worst_months（label、net_display、win_rate_display），评论关键转折点}
 
 | 月份 | 净盈亏 | 成交 | 累计 |
 |------|--------|------|------|
@@ -216,7 +210,7 @@ FOMO抵抗力   {ratings.fomoResistance 个实心方块}  {ratings.fomoResistanc
 {Robinhood 持仓（rh）和 HL 现货（hl_spot）另列简表：资产、账户标签、数量、成本；不要写账户完整号码}
 
 {然后对每个持仓结合历史数据评论（1-3句/每个），评论角度：}
-{- 在该资产上的历史胜率（从 byAsset 查）——胜率低就点出来}
+{- 在该资产上的历史胜率（从 by_asset_best / by_asset_worst 或 page.json 持仓的 history_display 查）——胜率低就点出来}
 {- 当前浮盈亏状态 + 交易员历史习惯的关联（比如：你历来在亏损时越套越加，现在浮亏X%，你会怎么做？）}
 {- 杠杆倍数 + 清算距离（入场价到清算价的百分比）——如果清算距离 <15%，用"⚠️"开头特别警示}
 {语气与全篇一致：爱你但不惯着你，数据说话}
@@ -234,7 +228,7 @@ D级  纯韭菜         胜率<40%
 F级  建议认真考虑人生方向
 ```
 
-**本次评级：{grade} 级 · 「{gradeLabel}」**
+**本次评级：{persona.grade} 级 · 「{persona.grade_label}」**
 
 {1-2句评级理由，引用胜率、盈亏比、爆仓次数等数据——不要提具体盈亏金额}
 

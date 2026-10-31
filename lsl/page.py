@@ -482,7 +482,7 @@ def _positions(op, sm):
                      "cost_basis_display": money(eq_cost[i]) if i in eq_cost else "-",
                      "share_display": pct(share) if share is not None else "-",
                      "expiration": p.get("expiration"), "days_to_expiry": dte,
-                     "history_display": ("%s, %s" % (plural(h["closed_trades"], "trade"), money(h["net_pnl"], True))
+                     "history_display": (_("%s, %s") % (plural(h["closed_trades"], "trade"), money(h["net_pnl"], True))
                                          if h and h["closed_trades"] else _("none")),
                      "history_tone": tone(h["net_pnl"]) if h else None,
                      "flags": flags})
@@ -781,7 +781,7 @@ def build(sm, se, op, dq, lang="en"):
     scope = sm.get("scope") or {"id": "all", "kind": "all", "label": None}
     lines = _lines(se)
     page = {
-        "schema": SCHEMA, "lang": lang, "as_of": sm["as_of"],
+        "schema": SCHEMA, "lang": lang, "html_lang": "zh-Hans" if lang == "zh" else "en", "as_of": sm["as_of"],
         "as_of_display": (sm["as_of"] or "")[:16].replace("T", " ") + " UTC",
         "scope": {"id": scope["id"], "kind": scope.get("kind", "all"),
                   "label": (scope.get("labels") or {}).get(lang) or scope.get("label") or _("All accounts")},

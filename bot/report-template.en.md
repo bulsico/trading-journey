@@ -119,17 +119,11 @@ Last 50 trades: {strip_display}
 
 {2-3 sentences on what this type is like, in second person ("you"), so it lands}
 
-Five ratings:
+Five ratings (page.json → `persona.ratings[]`: `label`, `bar`, `display`, copied as is; do not draw the bars yourself):
 
 ```
-Patience            {█ x patience}  {patience}/10  ({one-line jab})
-FOMO resistance     {█ x fomo_resistance}  {fomo_resistance}/10  ({jab})
-Stop-loss discipline {█ x stop_loss_discipline}  {stop_loss_discipline}/10  ({jab})
-Trend awareness     {█ x trend_awareness}  {trend_awareness}/10  ({jab})
-Resilience          {█ x resilience}  {resilience}/10  ({jab})
+{one line each: {label}  {bar}  {display}  ({one-line jab})}
 ```
-
-> █ filled, ░ empty, e.g. ████░░░░░░ 4/10
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

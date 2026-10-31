@@ -44,6 +44,7 @@
     "%s venues": "%s 个市场",
     "%s vs %s": "%s 对 %s",
     "%s wins / %s losses": "%s 胜 / %s 负",
+    "%s, %s": "%s，%s",
     "1 - 4 weeks": "1-4 周",
     "1 - 6 months": "1-6 个月",
     "1 - 7 days": "1-7 天",
@@ -155,7 +156,7 @@
   },
   "ui": {
     "title": "交易旅程",
-    "tldr": "一句话总结",
+    "tldr": "要点速览",
     "share_card": "分享卡片",
     "show_dollars": "显示金额",
     "dollars": "$",
@@ -406,6 +407,7 @@
     "win_rate": "胜率 {win_rate}，共 {trades} 笔平仓；盈亏比 {payoff}。",
     "verdict": "判词：{archetype}，评级 {grade}（{grade_label}）。",
     "verdict_badge": "徽章：{badge}（{tagline}）",
+    "verdict_sep": "",
     "no_trades": "{fills} 笔成交，一笔平仓都没有。想吐槽都没素材，暂时。",
     "assets_best": "最赚：{best}（{best_pnl}）。",
     "assets_worst": "最亏：{worst}（{worst_pnl}）。",
@@ -418,9 +420,9 @@
     "accounts_bleed": "{n} 个账户里，{bleed} 失血最多（{bleed_pnl}）。",
     "trend_with_trend_better": "趋势：顺势开仓胜率 {w_wr}（{w_net}），逆势 {c_wr}（{c_net}）。",
     "trend_counter_trend_better": "趋势：逆势开仓胜率 {c_wr}（{c_net}），顺势 {w_wr}（{w_net}）。",
-    "trend_fights_trend_often": "趋势：{counter_share} 的开仓逆着均线趋势，平均每笔 {c_avg}，顺势 {w_avg}。",
-    "trend_alt_longs": "趋势：BTC 死叉期间做多山寨 {n} 笔，{net}。",
-    "trend_alt_longs_tail": "BTC 死叉期间做多山寨 {n} 笔，{net}。"
+    "trend_fights_trend_often": "趋势：{counter_share} 的开仓逆着均线趋势；逆势平均每笔 {c_avg}，顺势 {w_avg}。",
+    "trend_alt_longs": "趋势：BTC 死叉期间做多山寨 {n} 笔，合计 {net}。",
+    "trend_alt_longs_tail": "BTC 死叉期间做多山寨 {n} 笔，合计 {net}。"
   },
   "accounts": {
     "heading": "分账户",
@@ -447,7 +449,7 @@
     "open_lead": "{symbol}：当前一边多一边空",
     "open_body": "做多：{long}；做空：{short}。",
     "offset_lead": "亏损账户吐回了 {given_back} 的盈利",
-    "offset_body": "{winners} 赚了 {gain}；{losers} 亏了 {loss}。",
+    "offset_body": "盈利账户 {winners} 合计 {gain}；亏损账户 {losers} 合计 {loss}。",
     "loser_share": "{label}：吃掉盈利的 {share}",
     "shared": "有 {n} 个资产在不止一个账户里交易过。",
     "none": "账户之间没有冲突：没有资产在不同账户反向交易，也没有账户抵消另一个账户。",
@@ -455,14 +457,14 @@
     "all_accounts": "全部账户",
     "list_sep": "、",
     "clause_sep": "；",
-    "with_shares": "{body}{shares}",
-    "card_in_picker": "这个账户的卡片在上方“分享卡”的账户选择里；需要 PNG 的话在聊天里说一声即可。",
+    "with_shares": "{body}{shares}。",
+    "card_in_picker": "这个账户的卡片在上方“分享卡片”的账户选择里；需要 PNG 的话在聊天里说一声即可。",
     "card_on_request": "想要这个账户的卡片，直接问机器人。"
   },
   "trend": {
     "heading": "趋势纪律",
     "caption": "每笔开仓都对照该资产的日线均线打标签（股票 15/50/200，加密 7/50/200；期权看标的），取开仓前最后一根已收盘日K。由脚本计算，不是推断。",
-    "coverage": "{closed} 笔已平仓交易中 {tagged} 笔有标签（{share}）；未标注：{untagged}。",
+    "coverage": "{closed} 笔已平仓交易中 {tagged} 笔有标签（{share}）；未标注的：{untagged}。",
     "status_insufficient_history": "历史不足 200 天",
     "status_unavailable": "该资产没有K线",
     "status_stale": "K线过旧",
@@ -473,7 +475,7 @@
     "col_win_rate": "胜率",
     "col_net": "净盈亏",
     "col_avg": "平均盈亏",
-    "col_regime": "SMA50 对 SMA200",
+    "col_regime": "均线格局（SMA50 / SMA200）",
     "col_venue": "平台",
     "col_account": "账户",
     "col_tagged": "已标注",
@@ -504,10 +506,10 @@
     "n_fights_trend_often_lead": "{counter_share} 的开仓在逆势",
     "n_fights_trend_often": "逆势平均每笔 {c_avg}，顺势 {w_avg}。",
     "n_alt_longs_lead": "BTC 死叉期间做多山寨",
-    "n_alt_longs": "{n} 笔，胜率 {wr}，{net}。",
+    "n_alt_longs": "{n} 笔，胜率 {wr}，合计 {net}。",
     "none": "顺势与逆势开仓暂时没有明显差别。",
     "no_candles": "趋势标签需要日K线：先运行 `lsl candles fetch`。",
-    "status_item": "{label}：{n}",
+    "status_item": "{label} {n} 笔",
     "list_sep": "、"
   }
 }

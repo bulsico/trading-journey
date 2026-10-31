@@ -190,7 +190,7 @@ def tldr(sm, page, lang):
     per = page["persona"]
     verdict = T["verdict"].format(archetype=per["archetype_label"], grade=per["grade"], grade_label=per["grade_label"])
     if bd.get("name"):
-        verdict += " " + T["verdict_badge"].format(badge=bd["name"], tagline=bd["tagline"])
+        verdict += T["verdict_sep"] + T["verdict_badge"].format(badge=bd["name"], tagline=bd["tagline"])
     lines.append(verdict)
     return lines[:6]
 

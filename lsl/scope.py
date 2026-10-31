@@ -15,7 +15,7 @@ import re
 
 from . import hl as hlmod
 
-KINDS = {"individual": ("Individual", "个人账户"), "ira_traditional": ("Traditional IRA", "传统IRA"),
+KINDS = {"individual": ("Individual", "个人账户"), "ira_traditional": ("Traditional IRA", "传统 IRA"),
          "ira_roth": ("Roth IRA", "Roth IRA"), "joint": ("Joint", "联名账户"), "unknown": ("Account", "账户")}
 
 

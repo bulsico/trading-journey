@@ -20,7 +20,7 @@ combination (at least one):
 ## Use it from Grok Bot
 
 Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo at tag
-`v0.2.6`, run the self-test, pick the language, collect sources (Hyperliquid
+`v0.2.7`, run the self-test, pick the language, collect sources (Hyperliquid
 addresses; Robinhood via the official connector, whose namespace it discovers),
 sync, fetch daily candles for the SMA trend tags (`lsl candles fetch`), compute one combined report (with a per-account breakdown when there are
 several accounts; single-account reports on request), render the share card
