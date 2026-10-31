@@ -22,8 +22,8 @@ rasterizer for the PNG share card (see step 5).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.3 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.3 2>/dev/null; git checkout -q v0.2.3
+[ -d $REPO/.git ] || git clone --branch v0.2.4 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.4 2>/dev/null; git checkout -q v0.2.4
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```

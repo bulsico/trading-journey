@@ -168,7 +168,7 @@ export default function TradingJourney() {
         <BulletList items={D.tldr as string[]} />
       </Section>
 
-      {VARIANTS["all.usd"] || CARD_ACCTS.length ? (
+      {Object.keys(VARIANTS).length || CARD_ACCTS.length ? (
         <Section heading={U.share_card} caption={`${cardLabel} · ${U.card_note}`}>
           {CARD_ACCTS.length ? <Select label={AL.picker} options={picker} value={cacct} onChange={setCacct} /> : null}
           {periods.length > 1 ? <Segmented options={periods.map((p) => ({ value: p.id, label: p.label }))} value={cper} onChange={setPeriod} /> : null}
