@@ -905,6 +905,17 @@ INSTALL_HINT = ("no SVG rasterizer found; the PNG attached in chat is the user's
                 "attach the SVG only as a last resort")
 
 
+def _zip_png(pp):
+    """Chat clients recompress inline images, so the original PNG also ships in a stored
+    (uncompressed) zip next to it; that zip is the download attached in chat."""
+    import zipfile
+    zp = pp[:-4] + ".zip"
+    zi = zipfile.ZipInfo(os.path.basename(pp), date_time=(2020, 1, 1, 0, 0, 0))  # fixed time: byte-stable
+    with open(pp, "rb") as f, zipfile.ZipFile(zp, "w", zipfile.ZIP_STORED) as z:
+        z.writestr(zi, f.read())
+    return os.path.abspath(zp)
+
+
 def _write(path, s, png, res):
     with open(path, "w", encoding="utf-8") as f:
         f.write(s)
@@ -914,7 +925,7 @@ def _write(path, s, png, res):
         pp = path[:-4] + ".png"
         tool = to_png(path, pp)
         if tool:
-            res.update({"png": os.path.abspath(pp), "rasterizer": tool})
+            res.update({"png": os.path.abspath(pp), "rasterizer": tool, "zip": _zip_png(pp)})
         else:
             res.update({"png": None, "hint": INSTALL_HINT})
     return res

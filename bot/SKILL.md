@@ -261,15 +261,19 @@ python3 bin/lsl card --data-dir $DATA --scope $SCOPE --lang $LANG_ [--period all
 
 Writes `$OUT/share-card.svg` (byte-identical for the same input) and, when a
 rasterizer is installed (`rsvg-convert`, `cairosvg` or `inkscape`),
-`$OUT/share-card.png`. `--percent-only` is still accepted and does nothing (the
+`$OUT/share-card.png` plus `$OUT/share-card.zip` (that PNG, uncompressed, for download). `--percent-only` is still accepted and does nothing (the
 card never shows dollars).
 
 The chat attachment is the only real download path. The Page runs in a sandboxed
 frame with no download, blob or clipboard support, so it shows the card as an
 image with no download buttons and its note says the PNG is in the chat. So:
 
-- Always attach the combined `share-card.png` (in `$LANG_`) to the chat right
-  after the report, without being asked.
+- Always attach the combined card to the chat right after the report, without
+  being asked, as two attachments: `share-card.png` (inline preview) and then
+  `share-card.zip` (the result's `"zip"`), the full-resolution 2x original in a
+  stored zip. Chat clients recompress inline images, so the zip is the real
+  download; say once that the zip holds the sharp original. Do the same (PNG
+  preview plus its `.zip`) for every other card you attach.
 - If the result says `"png": null` (no rasterizer), install one first, then
   rerun the same `lsl card ... --png` command:
   ```bash
