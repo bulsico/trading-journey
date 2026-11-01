@@ -43,10 +43,12 @@ from .rhpage import (COMPLETE, EMPTY, ERROR, MANGLED, TRUNCATED, classify, mangl
 from .util import (UTC, add_months, et_wall_to_utc, iso, read_json, to_utc,
                    write_json)
 
-# The connector namespace is whatever the bot discovers (GetDynamicTools, pattern
-# "Robinhood"); it is passed once with --namespace and kept in rh_state.json.
-NO_NAMESPACE = ("pass --namespace <the Robinhood connector namespace>; find it with "
-                "GetDynamicTools pattern 'Robinhood'")
+# The connector namespace is whatever the host named its Robinhood MCP server.
+# It is passed once with --namespace and kept in rh_state.json. The engine never
+# stores credentials and never plans a tool that is not a read-only get_*.
+NO_NAMESPACE = ("pass --namespace <the Robinhood MCP namespace your host assigned "
+                "(for example the name you gave https://agent.robinhood.com/mcp/trading). "
+                "Do not put credentials in the namespace or the data dir.")
 READ_ONLY_TOOLS = {
     "get_accounts", "get_equity_orders", "get_option_orders", "get_crypto_orders",
     "get_realized_pnl", "get_pnl_trade_history", "get_equity_positions",

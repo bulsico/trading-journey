@@ -1,8 +1,11 @@
 """lsl command line. All output is JSON on stdout.
 
-DATA is a stable, persistent data dir (default ~/trading-journey-data, or $LSL_DATA_DIR):
-DATA/state (sync state + parsed records), DATA/raw (saved MCP results), DATA/out.
-It is kept between runs so later runs sync incrementally; `--run` is an alias.
+DATA is a stable, persistent data dir. Resolution, first match: `--data-dir`,
+`$LSL_DATA_DIR`, `~/trading-journey-data` if that directory already exists,
+otherwise `~/.trading-journey`. It holds state/ (sync cursors and parsed
+records), raw/ (saved MCP results), out/ (computed files) and prefs.json
+(report language). It is kept between runs so later runs sync incrementally;
+`--run` is an alias.
 
   lsl rh plan    [--data-dir DATA] [--namespace NS] [--max N] [--now ISO]  next exact MCP calls
                  [--candles on|off]  also plan Robinhood stock-candle calls (default off)
@@ -26,6 +29,8 @@ It is kept between runs so later runs sync incrementally; `--run` is an alias.
                  DATA/out/<scope-slug>/ unless --out is given
   lsl page       [--out DIR | --data-dir DATA --scope SCOPE] [--lang en|zh] [--compact] [--copy FILE]
                                                      rebuild page.json
+  lsl html       [--out DIR | --data-dir DATA --scope SCOPE] [--lang en|zh] [--copy FILE]
+                                                     self-contained report.html (cards inlined, PNG paths listed)
   lsl card       [--out DIR | --data-dir DATA --scope SCOPE] [--period all|90d|30d|7d]
                  [--lang en|zh] [--png] [--per-account] [--copy FILE]
                                                      three 1080x1920 story cards (SVG, +2x PNG),
@@ -34,6 +39,9 @@ It is kept between runs so later runs sync incrementally; `--run` is an alias.
                                                      account; --copy uses the bot's checked copy.json
                                                      (--percent-only: accepted, no-op)
   lsl purge      [--data-dir DATA] [--source rh|hl|all] [--yes]  wipe stored account data
+                                                     (prefs.json at the data-dir root is kept)
+  lsl prefs      [show|set --lang en|zh|system] [--data-dir DATA]   report language
+  lsl data-dir   [--data-dir DATA]                                  resolved data dir
   lsl selftest
 """
 import argparse
@@ -57,13 +65,35 @@ def _scope_out(a):
     return compute.scope_out(a.run, a.scope)
 
 
-def default_data_dir():
-    return os.path.expanduser(os.environ.get("LSL_DATA_DIR") or "~/trading-journey-data")
+LEGACY_DATA_DIR = "~/trading-journey-data"
+LOCAL_DATA_DIR = "~/.trading-journey"
+
+
+def data_dir_info(environ=None, isdir=None):
+    """Where account data goes when `--data-dir` is omitted.
+
+    `$LSL_DATA_DIR` wins. Else `~/trading-journey-data` if it already exists
+    (the directory Grok Bot has always used). Else `~/.trading-journey`.
+    """
+    env = os.environ if environ is None else environ
+    exists = os.path.isdir if isdir is None else isdir
+    raw = env.get("LSL_DATA_DIR")
+    if raw:
+        return {"data_dir": os.path.expanduser(raw), "source": "env"}
+    legacy = os.path.expanduser(LEGACY_DATA_DIR)
+    if exists(legacy):
+        return {"data_dir": legacy, "source": "legacy"}
+    return {"data_dir": os.path.expanduser(LOCAL_DATA_DIR), "source": "default"}
+
+
+def default_data_dir(environ=None, isdir=None):
+    return data_dir_info(environ, isdir)["data_dir"]
 
 
 def _data(sp):
     sp.add_argument("--data-dir", "--run", dest="run", default=None,
-                    help="persistent data dir (default ~/trading-journey-data or $LSL_DATA_DIR)")
+                    help="persistent data dir ($LSL_DATA_DIR, else ~/trading-journey-data "
+                         "if it exists, else ~/.trading-journey)")
 
 
 def purge(data_dir, source="all", yes=False):
@@ -96,7 +126,7 @@ def main(argv=None):
     rh.add_argument("action", choices=["plan", "ingest", "status", "refresh"])
     _data(rh)
     rh.add_argument("--max", type=int, default=8)
-    rh.add_argument("--namespace", help="the Robinhood connector namespace found with GetDynamicTools")
+    rh.add_argument("--namespace", help="Robinhood MCP namespace (the name your host gave the server)")
     rh.add_argument("--now")
     rh.add_argument("--option-universe", choices=["on", "off"],
                     help="optional option-contract cross-check (default off)")
@@ -133,6 +163,13 @@ def main(argv=None):
     pg.add_argument("--compact", action="store_true",
                     help="small payload for pasting into one Page write (fixed trims, see lsl/page.py compact)")
     pg.add_argument("--copy", help="bot-written share-card copy.json (persona/verdict/rules/question); see lsl/card.py")
+    ht = sub.add_parser("html")
+    _data(ht)
+    ht.add_argument("--out", help="dir holding the compute outputs (default DATA/out/<scope-slug>)")
+    ht.add_argument("--scope", default="all")
+    ht.add_argument("--lang", choices=["zh", "en"],
+                    help="report language (default: the lang already in page.json, else en)")
+    ht.add_argument("--copy", help="card-copy.json to quote in the report (default: OUT/card-copy.json if it exists)")
     cd = sub.add_parser("card")
     _data(cd)
     cd.add_argument("--out", help="dir holding the compute outputs (default DATA/out/<scope-slug>)")
@@ -150,8 +187,16 @@ def main(argv=None):
     _data(pu)
     pu.add_argument("--source", choices=["rh", "hl", "all"], default="all")
     pu.add_argument("--yes", action="store_true")
+    pr = sub.add_parser("prefs")
+    pr.add_argument("action", nargs="?", choices=["show", "set"], default="show")
+    pr.add_argument("--lang", choices=["en", "zh", "system"],
+                    help="set: en, zh, or system (resolved from LANG / LC_ALL on each read)")
+    _data(pr)
+    dd = sub.add_parser("data-dir")
+    _data(dd)
     sub.add_parser("selftest")
     a = p.parse_args(argv)
+    explicit_run = getattr(a, "run", None)
     if hasattr(a, "run") and a.run is None:
         a.run = default_data_dir()
 
@@ -225,6 +270,29 @@ def main(argv=None):
         res = page.run(_scope_out(a), a.lang, a.compact, a.copy)
         sys.stdout.write(dumps(res))
         return 1 if "error" in res else 0
+    if a.cmd == "html":
+        from . import htmlreport
+        res = htmlreport.run(_scope_out(a), a.lang, a.copy)
+        sys.stdout.write(dumps(res))
+        return 1 if "error" in res else 0
+    if a.cmd == "prefs":
+        from . import prefs
+        if a.action == "set":
+            res = prefs.set_choice(a.run, a.lang) if a.lang else {
+                "error": "pass --lang en|zh|system", "path": prefs.path(a.run)}
+        else:
+            res = prefs.show(a.run)
+        sys.stdout.write(dumps(res))
+        return 1 if "error" in res else 0
+    if a.cmd == "data-dir":
+        if explicit_run:
+            info = {"data_dir": os.path.abspath(os.path.expanduser(explicit_run)), "source": "flag"}
+        else:
+            info = data_dir_info()
+        import lsl
+        info["version"] = lsl.VERSION
+        sys.stdout.write(dumps(info))
+        return 0
     if a.cmd == "card":
         from . import card
         res = card.run(_scope_out(a), period=a.period, percent_only=a.percent_only, png=a.png, lang=a.lang,
@@ -236,7 +304,6 @@ def main(argv=None):
         sys.stdout.write(dumps(compute.sources(a.run)))
         return 0
     if a.cmd == "selftest":
-        import os
         import unittest
         here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         suite = unittest.defaultTestLoader.discover(os.path.join(here, "tests"), top_level_dir=here)
