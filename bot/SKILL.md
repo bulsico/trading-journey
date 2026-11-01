@@ -23,8 +23,8 @@ installs one when missing).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.14 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.14 2>/dev/null; git checkout -q v0.2.14
+[ -d $REPO/.git ] || git clone --branch v0.2.15 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.15 2>/dev/null; git checkout -q v0.2.15
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```

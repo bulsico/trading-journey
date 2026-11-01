@@ -19,8 +19,8 @@ combination (at least one):
 
 ## Use it from Grok Bot
 
-Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo at tag
-`v0.2.14`, run the self-test, ask which language to use, collect sources (Hyperliquid
+Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo
+(`https://github.com/bulsico/trading-journey`) at tag `v0.2.15`, run the self-test, ask which language to use, collect sources (Hyperliquid
 addresses; Robinhood via the official connector, whose namespace it discovers),
 sync, fetch daily candles for the SMA trend tags (`lsl candles fetch`), compute one combined report (with a per-account breakdown when there are
 several accounts; single-account reports on request), render the share cards
@@ -40,7 +40,7 @@ switch.
 ## CLI
 
 ```bash
-python3 bin/lsl selftest                                   # 65 synthetic-data tests
+python3 bin/lsl selftest                                   # synthetic-data test suite (must end OK)
 
 python3 bin/lsl hl add    --data-dir DATA 0x... [--label NAME]  # validate (0x + 40 hex), dedupe
 python3 bin/lsl hl list   --data-dir DATA                  # tracked addresses (short form)
@@ -51,6 +51,8 @@ python3 bin/lsl rh ingest --data-dir DATA                  # parse saved results
 python3 bin/lsl rh status --data-dir DATA                  # per-stream completeness (counts only)
 python3 bin/lsl rh refresh --data-dir DATA                 # start an incremental round on a finished sync
 python3 bin/lsl sources   --data-dir DATA                  # which sources have data, available scopes
+python3 bin/lsl candles fetch  --data-dir DATA [--stocks yahoo|rh]  # daily candles for trend tags (cached, incremental)
+python3 bin/lsl candles status --data-dir DATA             # which candle series are complete
 
 python3 bin/lsl compute --data-dir DATA [--scope SCOPE] [--lang en|zh]   # -> DATA/out/<scope-slug>/
 python3 bin/lsl page    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--compact] [--copy FILE]   # rebuild page.json only
@@ -242,11 +244,28 @@ realized P&L of trades closed that day minus that day's fees (funding excluded).
 Days are US/Eastern for Robinhood and UTC for Hyperliquid. Period net excludes
 HL funding; all-time P&L and the P&L cohort include it.
 
+## Trend discipline
+
+`lsl candles fetch` caches daily candles (Hyperliquid `candleSnapshot` for
+crypto and HL markets, the keyless Yahoo chart endpoint for stocks and option
+underlyings, or Robinhood historicals via `rh plan --candles on` and
+`--stocks rh`). Every closed trade's entry is then tagged against the daily SMAs
+of its asset, from the last closed daily candle before the entry day: stocks
+(and options, via the underlying) use SMA 15/50/200, crypto and everything else
+SMA 7/50/200. A long above the fast SMA in a golden cross (SMA50 > SMA200), or a
+short below it in a death cross, is *with* the trend; the reverse is *counter*;
+anything else is *neutral*; fewer than 200 prior closes is
+`insufficient_history`, never a guess (rules in `lsl/trend.py`). Aggregates by
+alignment, regime, direction, venue and account land in `summary.json` →
+`trend` and the Page's "Trend discipline" section. Without candles the section
+is hidden and everything else still runs.
+
 ## TL;DR
 
-`page.json` → `tldr` holds 3 to 5 script-written lines (headline net, best and
-worst asset or trade, win rate, verdict and badge) that open the Page
-and the chat report.
+`page.json` → `tldr` holds 3 to 6 script-written lines (headline net, best and
+worst asset or trade, win rate, verdict and badge; with several accounts the
+account that carried the result and the one that bled; a trend line when trend
+discipline is notable) that open the Page and the chat report.
 
 ## Known gaps
 
