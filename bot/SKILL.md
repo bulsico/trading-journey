@@ -23,8 +23,8 @@ installs one when missing).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.8 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.8 2>/dev/null; git checkout -q v0.2.8
+[ -d $REPO/.git ] || git clone --branch v0.2.9 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.9 2>/dev/null; git checkout -q v0.2.9
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```
@@ -37,12 +37,32 @@ a fresh full sync (tested). Never put it inside the repo or anywhere shared.
 
 ## 1. Language
 
-Write the report, the Page and the card in the user's language: Chinese (`zh`,
-the 交易来时路 roast) or English (`en`). Pick it from the language the user
-writes in; if that is unclear (mixed, or neither), ask once: "中文还是 English?".
-Remember the choice (memory) and reuse it on later runs; switch whenever the user
-asks ("in English please", "用中文"). Pass it as `--lang en|zh` to `compute`,
-`page` and `card`. Below, `$LANG_` is that value.
+Write the report, the Page and the card in one language: Chinese (`zh`, the
+交易来时路 roast) or English (`en`). Never infer it silently.
+
+**First run (no saved choice):** before you generate the first report or Page,
+always ask with a question widget (`SendToUser`, a single-choice question) that
+offers exactly three options:
+
+- **English** -> `en`
+- **中文 (Chinese)** -> `zh`
+- **System language** -> resolve it now from the user's system or app locale. If
+  no locale is available, use the language the user writes in. A Chinese locale
+  of any variant (`zh`, `zh-CN`, `zh-TW`, `zh-Hant`...) maps to `zh` and an
+  English one to `en`. Any other language falls back to `en`: tell the user
+  ("System language is <X>, which isn't supported yet, so I'm using English").
+
+Put the question in both languages, for example "Report language / 报告语言?".
+Wait for the answer. Don't compute or build anything in a language until the
+user has picked one.
+
+**Remember it:** save the choice (`en`, `zh` or `system`) to memory and reuse it
+on later runs without asking again. If the saved choice is `system`, resolve it
+again on every run, because the locale may have changed. Switch whenever the
+user asks ("in English please", "用中文") and save the new choice.
+
+Pass the resolved value as `--lang en|zh` to `compute`, `page` and `card`.
+Below, `$LANG_` is that value.
 
 ## 2. Sources
 

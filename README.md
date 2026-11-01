@@ -20,7 +20,7 @@ combination (at least one):
 ## Use it from Grok Bot
 
 Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo at tag
-`v0.2.8`, run the self-test, pick the language, collect sources (Hyperliquid
+`v0.2.9`, run the self-test, ask which language to use, collect sources (Hyperliquid
 addresses; Robinhood via the official connector, whose namespace it discovers),
 sync, fetch daily candles for the SMA trend tags (`lsl candles fetch`), compute one combined report (with a per-account breakdown when there are
 several accounts; single-account reports on request), render the share card
@@ -28,6 +28,14 @@ several accounts; single-account reports on request), render the share card
 Page from `bot/page-template.tsx`, and write the review
 (`bot/report-template.en.md` or `bot/report-template.zh.md`; background in
 `context/market-context.md`).
+
+Before the first report and Page, the bot asks which language to use with a
+question widget: English, 中文 (Chinese), or System language. System language is
+resolved from the user's locale, or from the language they write in, and maps to
+`zh` or `en`. Other languages fall back to English, and the bot says so. The
+choice is saved to memory and reused on later runs without asking again. A saved
+"System language" is resolved again on every run. Ask the bot at any time to
+switch.
 
 ## CLI
 
