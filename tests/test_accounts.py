@@ -7,7 +7,7 @@ import random
 
 import unittest
 
-from lsl import accounts, card, hl
+from lsl import accounts, card, hl, persona
 from tests.fakes import FakeHL
 from tests.test_hl import ADDR, OTHER, fill
 from tests.test_sources import NOW, Base, add_hl, add_rh, hl_fills
@@ -128,9 +128,13 @@ class Breakdown(Base):
             self.assertLessEqual(abs(d["p"]["net_pnl"] - r["net_pnl"]), 0.011, r["key"])
             self.assertEqual((d["p"]["closed_trades"], d["p"]["win_rate"]), (r["closed_trades"], r["win_rate"]))
             pa = next(x for x in pg["card"]["accounts"] if x["key"] == r["key"])
-            self.assertEqual(pa["variants"]["all.usd"], s)
-            pct = card.svg(d, "en", percent_only=True)
-            self.assertNotIn("$", pct)
+            self.assertEqual(pa["variants"]["all"], s)
+            self.assertNotIn("$", s)
+            # per-account persona (all-time, that account's own trades) is what the card shows
+            pz = sm["scopes"][r["key"]]["persona"]
+            self.assertEqual({k: d["persona"][k] for k in ("archetype", "grade", "modifiers", "ratings")},
+                             {k: pz[k] for k in ("archetype", "grade", "modifiers", "ratings")})
+            self.assertIn(persona.labels("en")["archetypes"][pz["archetype"]].replace("&", "&amp;"), s)
             for secret in ("TEST0001", "TEST0002", ADDR[2:], OTHER[2:]):
                 self.assertNotIn(secret, s)
         with open(r1["svg"], encoding="utf-8") as f:
@@ -158,7 +162,8 @@ class Breakdown(Base):
             self.assertFalse(full["compact"])
             per = full["card"]["default"]["period"]
             # the one card kept is byte-identical to the full payload's; per-account cards move to chat/CLI
-            self.assertEqual(pg["card"]["variants"], {per + ".usd": full["card"]["variants"][per + ".usd"]})
+            self.assertEqual(pg["card"]["variants"], {per: full["card"]["variants"][per]})
+            self.assertEqual(set(pg["card"]["sizes"]), {per})
             self.assertEqual(pg["card"]["accounts"], [])
             self.assertEqual([x["id"] for x in pg["card"]["periods"]], [per])
             # numbers the page shows are unchanged; only lists are shortened

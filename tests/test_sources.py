@@ -109,7 +109,7 @@ class Combinations(Base):
             self.assertEqual(len(pg["accounts"]["rows"]), n_acct if n_acct > 1 else 0)
             self.assertEqual(len(pg["card"]["accounts"]), n_acct if n_acct > 1 else 0)
             self.assertEqual(sm["profile"]["all"]["closed_trades"], sm["overall"]["closed_trades"])
-            # card: every listed period renders, for both money modes; output is deterministic
+            # card: every listed period renders; output is deterministic
             self.assertTrue(pg["card"]["periods"])
             for k, s in pg["card"]["variants"].items():
                 self.assertTrue(s.startswith("<svg") and s.rstrip().endswith("</svg>"), k)
@@ -120,11 +120,20 @@ class Combinations(Base):
             card.run(res["out"], lang=lang)
             with open(r1["svg"], "rb") as f:
                 self.assertEqual(f.read(), a)
-            self.assertEqual(a.decode(), pg["card"]["variants"]["all.usd"])
+            self.assertEqual(a.decode(), pg["card"]["variants"]["all"])
             with open(os.path.join(res["out"], "series.json")) as f:
                 se = json.load(f)
-            pct_only = card.svg(card.data(sm, se), lang, percent_only=True)
-            self.assertNotIn("$", pct_only)
+            # no dollar sign on any card: every scope (combined + each account), every period, both languages
+            self.assertEqual(set(sm["scopes"]) >= {r["key"] for r in sm["accounts"]["rows"]}, True)
+            for key in ["all"] + sorted(sm["scopes"]):
+                self.assertIn("persona", sm["scopes"].get(key, {"persona": 1}), key)
+                for per in card.available(sm, key):
+                    for lg in ("en", "zh"):
+                        d = card.data(sm, se, per, key)
+                        s1 = card.svg(d, lg)
+                        self.assertNotIn("$", s1, (key, per, lg))
+                        self.assertEqual(s1, card.svg(card.data(sm, se, per, key), lg))  # deterministic
+                        self.assertEqual(s1, card.svg(d, lg, percent_only=True))  # --percent-only is a no-op
         return sm, pg
 
     def test_rh_only(self):

@@ -27,14 +27,16 @@ const ACC = D.accounts as any;
 const TR = D.trend as any;
 const CARD_ACCTS = (CARD.accounts || []) as any[];
 const cardFor = (key: string) => (key === "all" ? CARD : CARD_ACCTS.find((c) => c.key === key) || CARD);
-// The account's card in the chosen period/money mode, else its first available period.
-const acctSvg = (c: any, period: string, mode: string) =>
-  c ? c.variants[`${period}.${mode}`] || (c.default.period ? c.variants[`${c.default.period}.${mode}`] : undefined) : undefined;
+// The account's card in the chosen period, else its first available period.
+const acctSvg = (c: any, period: string) =>
+  c ? c.variants[period] || (c.default.period ? c.variants[c.default.period] : undefined) : undefined;
+// The card is a tall portrait (1080 wide); cap its on-page width so it stays readable without scrolling forever.
+const CARD_WIDTH = "min(100%, 540px)";
 
-function accountSection(r: any, period: string, mode: string) {
+function accountSection(r: any, period: string) {
   const L = ACC.labels as Record<string, string>;
   const c = CARD_ACCTS.find((x) => x.key === r.key);
-  const svg = acctSvg(c, period, mode);
+  const svg = acctSvg(c, period);
   const sp = r.spark as any;
   return (
     <Section key={r.key} heading={`${r.label} · ${r.net_display}`} caption={r.caption} collapsible defaultOpen={false}>
@@ -96,21 +98,18 @@ export default function TradingJourney() {
   const venues = PR.venues as { key: string; label: string }[];
   const [venue, setVenue] = useState<string>(PR.default);
   const [pmode, setPmode] = useState<string>("usd");
+  const money = [{ value: "usd", label: U.dollars }, { value: "pct", label: U.percent }];
   const pb = PR.by[venue];
   const pc = pb.periods;
   const [cacct, setCacct] = useState<string>("all");
   const CA = cardFor(cacct);
   const periods = CA.periods as { id: string; label: string }[];
   const [period, setPeriod] = useState<string>(CARD.default.period);
-  const [cmode, setCmode] = useState<string>(CARD.default.mode);
   const cper = periods.some((p) => p.id === period) ? period : CA.default.period;
-  const hasPct = Object.keys(CA.variants).some((k) => k.endsWith(".pct"));
-  const cm = hasPct ? cmode : "usd";
-  const svg = cper ? (CA.variants as Record<string, string>)[`${cper}.${cm}`] : undefined;
+  const svg = cper ? (CA.variants as Record<string, string>)[cper] : undefined;
   const cardLabel = cacct === "all" ? D.scope.label : CA.label;
   const AL = ACC.labels as Record<string, string>;
   const picker = [{ value: "all", label: AL.all_accounts }, ...CARD_ACCTS.map((c) => ({ value: c.key as string, label: c.label as string }))];
-  const money = [{ value: "usd", label: U.dollars }, { value: "pct", label: U.percent }];
   const toc = [U.tldr, U.share_card, U.trader_profile, U.scoreboard, U.verdict, ...(has.journey ? [U.cumulative] : []),
     ...(has.accounts ? [AL.heading] : []), ...(has.journey ? [U.monthly] : []), ...((D.years as any[]).length ? [U.by_year] : []),
     ...(has.trades ? [U.where_money] : []), ...((G.rows as any[]).length ? [U.assets] : []), ...(has.trades ? [U.activity] : []),
@@ -132,10 +131,9 @@ export default function TradingJourney() {
         <Section heading={U.share_card} caption={`${cardLabel} · ${U.card_note}`}>
           {CARD_ACCTS.length ? <Select label={AL.picker} options={picker} value={cacct} onChange={setCacct} /> : null}
           {periods.length > 1 ? <Segmented options={periods.map((p) => ({ value: p.id, label: p.label }))} value={cper} onChange={setPeriod} /> : null}
-          {hasPct ? <Segmented options={money} value={cm} onChange={setCmode} /> : null}
           {svg ? (
             <>
-              <Image src={svgUrl(svg)} alt={`${U.share_card} · ${cardLabel}`} fit="contain" width="100%" />
+              <Image src={svgUrl(svg)} alt={`${U.share_card} · ${cardLabel}`} fit="contain" width={CARD_WIDTH} />
               <Text>{U.card_save}</Text>
             </>
           ) : (
@@ -211,7 +209,7 @@ export default function TradingJourney() {
           ))}
           {ACC.none ? <Text>{ACC.none}</Text> : null}
           {ACC.shared_display ? <Text>{ACC.shared_display}</Text> : null}
-          {(ACC.rows as any[]).map((r) => accountSection(r, cper || CARD.default.period, cm))}
+          {(ACC.rows as any[]).map((r) => accountSection(r, cper || CARD.default.period))}
         </Section>
       ) : null}
 

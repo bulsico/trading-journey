@@ -20,7 +20,7 @@ combination (at least one):
 ## Use it from Grok Bot
 
 Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo at tag
-`v0.2.7`, run the self-test, pick the language, collect sources (Hyperliquid
+`v0.2.8`, run the self-test, pick the language, collect sources (Hyperliquid
 addresses; Robinhood via the official connector, whose namespace it discovers),
 sync, fetch daily candles for the SMA trend tags (`lsl candles fetch`), compute one combined report (with a per-account breakdown when there are
 several accounts; single-account reports on request), render the share card
@@ -45,8 +45,8 @@ python3 bin/lsl rh refresh --data-dir DATA                 # start an incrementa
 python3 bin/lsl sources   --data-dir DATA                  # which sources have data, available scopes
 
 python3 bin/lsl compute --data-dir DATA [--scope SCOPE] [--lang en|zh]   # -> DATA/out/<scope-slug>/
-python3 bin/lsl page    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--compact]   # rebuild page.json only
-python3 bin/lsl card    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--period all|90d|30d|7d] [--percent-only] [--png] [--per-account]
+python3 bin/lsl page    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--compact] [--copy FILE]   # rebuild page.json only
+python3 bin/lsl card    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--period all|90d|30d|7d] [--copy FILE] [--png] [--per-account]
 python3 bin/lsl purge   --data-dir DATA [--source rh|hl|all] --yes
 python3 bin/lsl hl tokens --unit                           # public spotMeta lookup for the whitelist
 ```
@@ -56,7 +56,7 @@ python3 bin/lsl hl tokens --unit                           # public spotMeta loo
 overrides). `card` writes `share-card.svg` (and `share-card.png` with `--png`)
 next to them. With no source at all, `compute` returns an error asking for one.
 `page --compact` rewrites `page.json` small enough to paste into one Page write:
-same numbers, shorter lists (one share card, top asset groups, 24-point
+same numbers, shorter lists (one share card for the default period, top asset groups, 24-point
 sparklines, first 12 Robinhood positions); see `lsl/page.py` `compact()`.
 
 ### Scopes
@@ -104,24 +104,48 @@ account" section of the Page and the chat report (hidden for one account):
 
 ### Share card
 
-`lsl card` draws a 1200x675 SVG (byte-identical for the same input): dark
-background, scope label and short address top left, as-of date top right, big
-net P&L with its period (return on volume with `--percent-only`), a W/L strip,
-a stats row (win rate, Sharpe, max drawdown, trades), a cumulative sparkline, and a "Trading Journey" footer with a badge.
-`--percent-only` hides every dollar amount. `--png` rasterizes with the first of
+`lsl card` draws a tall 1080-wide SVG (byte-identical for the same input) in the
+style of a casual trader personality test, with no dollar amounts anywhere:
+only percentages, ratios, counts, days and asset names (drawdown is
+`drawdown_of_peak`, % of the peak cumulative P&L). Dark background, mono
+numbers, yellow emoji section headers and ◆ dividers:
+
+- header: brand, scope (sources, "N accounts"), window and as-of date;
+- badge + tagline, return on volume with a sparkline, a stats box (win rate,
+  profit factor, closed trades, assets, active days, drawdown of peak; Sharpe
+  and Sortino on shorter periods), best / worst asset, the last-50 W/L strip;
+- 🧬 trader type and modifiers, a roast built from counts (fills, days, fills per
+  day, busiest day), the trend-discipline line (% of entries against the SMA
+  trend) and five 0-10 score bars;
+- 📊 the S-F grade ladder with the user's grade highlighted, plus a verdict;
+- 🤖 three rules (bold lead + detail) and one question in a red-bordered box;
+- footer "Trading Journey · 交易旅程".
+
+Persona, scores and grade are all-time for the card's scope; the stats, badge,
+strip and sparkline follow `--period`. The persona paragraph, verdict, rules and
+question come from deterministic templates keyed on archetype, grade and flags
+(BTC death-cross alt longs, liquidations, counter-trend share, profit factor,
+overtrading, asset scatter). `--copy FILE` swaps in the bot's own wording from a
+`copy.json` (`persona`, `verdict`, `rules` [3], `question`; any may be omitted),
+which is checked first: no `$`, every number must appear in the script output
+(dollar fields excluded), per-language length and wrapped-line limits. A
+rejected file is an error listing the problems; nothing is drawn.
+`--percent-only` is accepted as a no-op. `--png` rasterizes with the first of
 `rsvg-convert`, `cairosvg` or `inkscape` it finds; without one it returns an
 install hint and the SVG is still written. The Page shows the card as an image
-with period and $/% toggles, but has no download buttons: it runs in a sandboxed
-frame with no download, blob or clipboard support. The PNG attached in chat is
-the download path; the bot always attaches the combined card after the report
-(installing a rasterizer first if needed) and any other card on request.
+(capped at 540px wide) with a period toggle, but has no download buttons: it
+runs in a sandboxed frame with no download, blob or clipboard support. The PNG
+attached in chat is the download path; the bot always attaches the combined
+card after the report (installing a rasterizer first if needed) and any other
+card on request.
 
 With several accounts the combined card adds "N accounts" to its scope line.
 `--per-account` (scope `all`) also writes `cards/<account-slug>.svg` (+ `.png`)
-for every account, from that account's own profile, liquidations and equity
-curve; it honors `--period` and `--percent-only`, and an account with too little
-data for the period is listed as `skipped` with its `available_periods`. The
-Page previews the same cards through its account picker; the PNGs come in chat.
+for every account, from that account's own profile, persona, liquidations and
+equity curve (template copy); it honors `--period`, and an account with too
+little data for the period is listed as `skipped` with its `available_periods`.
+The Page previews the same cards through its account picker; the PNGs come in
+chat.
 
 Badge (first rule that matches, on the card's period net P&L and win rate):
 all-time net < 0 with >= 3 liquidated trades → Liquidation Speedrun;

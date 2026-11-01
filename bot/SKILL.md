@@ -23,8 +23,8 @@ installs one when missing).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.7 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.7 2>/dev/null; git checkout -q v0.2.7
+[ -d $REPO/.git ] || git clone --branch v0.2.8 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.8 2>/dev/null; git checkout -q v0.2.8
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```
@@ -185,21 +185,59 @@ grouped via `lsl/data/asset_map.json`; ambiguous ones stay ungrouped.
 
 ## 5. Share card
 
-The card always follows the report scope and language.
+The card always follows the report scope and language. It is a tall, casual
+portrait (1080 wide) in the style of a trader personality test, and it never
+shows a dollar amount: only percentages, ratios, counts, days and asset names
+(drawdown is shown as `drawdown_of_peak`, % of the peak cumulative P&L). Top to
+bottom: brand, scope and window; badge + tagline; return on volume with a
+sparkline; win rate / profit factor / closed trades / assets / active days /
+drawdown of peak (Sharpe and Sortino on 90d/30d/7d); best and worst asset; the
+W/L strip; 🧬 trader type, a roast built from counts and the trend-discipline
+line; five score bars (x/10); 📊 the S-F grade ladder with "you are here" and a
+verdict; 🤖 three rules and one question; the "Trading Journey · 交易旅程"
+footer. Persona, scores and grade are all-time for the card's scope (each
+account's own on a per-account card); the stats, badge, strip and sparkline
+follow `--period`.
 
-```bash
-python3 bin/lsl card --data-dir $DATA --scope $SCOPE --lang $LANG_ [--period all|90d|30d|7d] [--percent-only] --png
+### Card copy (`copy.json`)
+
+The persona paragraph, verdict, three rules and question come from fixed
+templates keyed on archetype, grade and flags unless you write them. Write them
+from your report (step 7; draft the report before you render the card or the
+Page) into `$OUT/card-copy.json`, in `$LANG_`, casual and fun like the report:
+
+```json
+{"persona": "...", "verdict": "...", "rules": ["Lead sentence. Detail.", "...", "..."], "question": "..."}
 ```
 
-Writes `$OUT/share-card.svg` (1200x675, byte-identical) and, when a rasterizer
-is installed (`rsvg-convert`, `cairosvg` or `inkscape`), `$OUT/share-card.png`.
+- Every key is optional; a missing one falls back to its template.
+- Never a `$` sign or a dollar amount. Every number you type must be printed in
+  `summary.json` (a count, percentage, ratio, day count or date; dollar fields
+  do not count), and you must copy it as printed, without rounding it again.
+- Each rule's first sentence is shown in bold as its lead.
+- Limits (characters / wrapped lines): zh persona 150/6, verdict 70/3, rule
+  60/3, question 50/3; en 330/6, 170/3, 140/3, 120/3.
+
+`lsl card` and `lsl page` check the file. If it breaks a rule the result is an
+`error` with `problems[]` and nothing is written: fix the copy or rerun without
+`--copy` (templates). Never edit the SVG by hand. The result's `copy` says
+which one was used (`copy.json` or `template`).
+
+```bash
+python3 bin/lsl card --data-dir $DATA --scope $SCOPE --lang $LANG_ [--period all|90d|30d|7d] --copy $OUT/card-copy.json --png
+```
+
+Writes `$OUT/share-card.svg` (byte-identical for the same input) and, when a
+rasterizer is installed (`rsvg-convert`, `cairosvg` or `inkscape`),
+`$OUT/share-card.png`. `--percent-only` is still accepted and does nothing (the
+card never shows dollars).
 
 The chat attachment is the only real download path. The Page runs in a sandboxed
 frame with no download, blob or clipboard support, so it shows the card as an
 image with no download buttons and its note says the PNG is in the chat. So:
 
-- Always attach the combined `share-card.png` to the chat right after the
-  report, without being asked.
+- Always attach the combined `share-card.png` (in `$LANG_`) to the chat right
+  after the report, without being asked.
 - If the result says `"png": null` (no rasterizer), install one first, then
   rerun the same `lsl card ... --png` command:
   ```bash
@@ -211,29 +249,27 @@ image with no download buttons and its note says the PNG is in the chat. So:
   Attach `share-card.svg` only as a last resort, when no rasterizer can be
   installed, and say once why it is an SVG.
 
-`--percent-only` hides dollar amounts (return on volume and win rate only);
-offer it when the user wants to share without amounts. If a period has too
-little data the result is an error listing `available_periods`; pick one of
-those. The card never shows an account number.
+If a period has too little data the result is an error listing
+`available_periods`; pick one of those. The card never shows an account number.
 
-Any other card (another period, the % version, or one account) is attached as a
-PNG when the user asks for it, made with `lsl card ... --png` (`--period`,
-`--percent-only`, `--per-account`). The Page's period and $/% toggles only
-preview cards; they cannot save them.
+Any other card (another period or one account) is attached as a PNG when the
+user asks for it, made with `lsl card ... --png` (`--period`, `--per-account`).
+The Page's period toggle only previews cards; it cannot save them.
 
 With several accounts the combined card says "N accounts" on its scope line.
 After the report, attach the combined card and offer per-account cards ("want a
 card for just one wallet or account?"). On request:
 
 ```bash
-python3 bin/lsl card --data-dir $DATA --scope all --lang $LANG_ --per-account [--period ...] [--percent-only] --png
+python3 bin/lsl card --data-dir $DATA --scope all --lang $LANG_ --per-account [--period ...] --png
 ```
 
 This also writes `$OUT/cards/<account-slug>.svg` (+ `.png`) for every account,
-in By-account order; the result's `cards[]` lists each one (`label`, `svg`,
-`png`), or `skipped` with that account's `available_periods` when it has too
-little data for the period. Attach only the PNG(s) the user asked for. The
-Page previews the same cards behind its account picker (view only).
+in By-account order (per-account cards always use the templates, since your
+copy describes the combined report); the result's `cards[]` lists each one
+(`label`, `svg`, `png`), or `skipped` with that account's `available_periods`
+when it has too little data for the period. Attach only the PNG(s) the user
+asked for. The Page previews the same cards behind its account picker (view only).
 
 ## 6. Build the Page
 
@@ -243,7 +279,7 @@ Read your Pages (canvas) skill before the first `WriteCanvas`.
    one `WriteCanvas` call, so it must stay small), then fill the template with
    the exact compact dump:
    ```bash
-   python3 bin/lsl page --data-dir $DATA --scope $SCOPE --lang $LANG_ --compact
+   python3 bin/lsl page --data-dir $DATA --scope $SCOPE --lang $LANG_ --compact [--copy $OUT/card-copy.json]
    python3 - "$OUT/page.json" bot/page-template.tsx "$OUT/page.tsx" <<'PY'
    import json, sys
    d = json.dumps(json.load(open(sys.argv[1])), ensure_ascii=False, separators=(",", ":"), sort_keys=True)
@@ -273,14 +309,14 @@ With candles, a "Trend discipline" section shows tag coverage, callouts, the
 with / counter / neutral table, regime and direction tables, and the split by
 venue and account.
 It opens with the TL;DR, the share card (account picker when there are several
-accounts, period and $/% toggles, the card as an image plus a line saying the
-PNG is attached in the chat; no download buttons), and the trader
+accounts, period toggle, the tall card as an image capped at 540px wide plus a
+line saying the PNG is attached in the chat; no download buttons), and the trader
 profile ($/% toggle, venue selector, 7D/30D/90D/All table). The Page is
 private to the user, so real tickers and amounts are fine there.
 
 `--compact` keeps every number the Page shows and only shortens lists: the
-share card is the default period in $ (the % and other-period cards, and the
-per-account cards, stay available via `lsl card`; account rows say to ask you),
+share card is the default period only (other-period and per-account cards stay
+available via `lsl card`; account rows say to ask you),
 asset groups are the top 5 best / 5 worst / 8 multi-venue, account sparklines
 use 24 points, and Robinhood positions show the first 12 rows with a "N more"
 line. The Page cannot save files; every card download is a PNG you attach in chat

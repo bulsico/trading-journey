@@ -760,6 +760,19 @@ def _public(st):
     return {k: v for k, v in st.items() if not k.startswith("_")}
 
 
+PERSONA_CODES = ("archetype", "modifiers", "ratings", "grade", "trend_basis")
+
+
+def _scope_public(key, st, trend, lang):
+    """A scope's public stats plus its own persona codes (labels come from the card/page lang).
+    The scope's SMA trend comes from trend.by_account when the scope is one account."""
+    tr = ((trend or {}).get("by_account") or {}).get(key)
+    if tr is not None:
+        tr = dict(tr, status=trend.get("status"))
+    p = persona.persona(st["_persona_in"], lang, trend=tr)
+    return dict(_public(st), persona={k: p[k] for k in PERSONA_CODES})
+
+
 # ======================================================================= driver
 asset_mod = assets
 
@@ -864,7 +877,7 @@ def compute_all(rh, hl, lang="zh", candles=None):
         "hl_addresses": [{"tag": d["tag"], "label": d["label"]} for d in (dq["hl"] or {}).get("addresses", [])]
         if multi else [],
         "overall": _public(overall),
-        "scopes": {k: _public(stats(*v)) for k, v in sorted(scopes.items())},
+        "scopes": {k: _scope_public(k, stats(*v), trend, lang) for k, v in sorted(scopes.items())},
         "persona": pers,
         "trend": trend,
         "best_trades": best[:5], "worst_trades": worst[:5],

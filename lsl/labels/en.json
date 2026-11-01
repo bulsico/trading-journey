@@ -228,7 +228,7 @@
     "hl_perps": "Hyperliquid perps",
     "hl_spot": "Hyperliquid spot",
     "rh_positions": "Robinhood",
-    "card_note": "Card follows the report scope.",
+    "card_note": "Card follows the report scope. Percentages and counts only, never dollar amounts.",
     "card_save": "The downloadable PNG of this card is attached in the chat. Where your browser allows it, right-click or long-press the image and choose Save Image.",
     "summary_fmt": "{scope} · {period} ({days} days) · data as of {as_of}. Every figure comes from trading-journey's deterministic outputs.",
     "since_fmt": "Since {label}",
@@ -345,7 +345,7 @@
   },
   "card": {
     "brand": "TRADING JOURNEY",
-    "footer": "Trading Journey",
+    "footer": "Trading Journey · 交易旅程",
     "all_accounts": "All accounts",
     "net_pnl": "Net P&L",
     "return_on_volume": "Return on volume",
@@ -398,7 +398,77 @@
       }
     },
     "net_pnl_ex_funding": "Net P&L · after fees, excl. HL funding",
-    "n_accounts": "%d accounts"
+    "n_accounts": "%d accounts",
+    "h_persona": [
+      "🧬",
+      "Trader personality test"
+    ],
+    "h_grade": [
+      "📊",
+      "Trader rank"
+    ],
+    "h_soul": [
+      "🤖",
+      "The AI asks the hard question"
+    ],
+    "type_prefix": "Your trader type: ",
+    "persona_all_time": "Persona, scores and rank use all-time history",
+    "profit_factor": "Win/loss ratio",
+    "closed": "Closed trades",
+    "assets": "Assets traded",
+    "active_days": "Active days",
+    "dd_of_peak": "Drawdown / peak",
+    "sortino": "Sortino",
+    "best_asset": "Best",
+    "worst_asset": "Worst",
+    "grade_line": "Your rank: {grade} · \"{label}\"",
+    "you_are_here": "◀ you are here",
+    "soul_intro": "Three things that would change your report card:",
+    "question_intro": "Before your next entry, ask yourself:",
+    "trend_line": "Trend discipline: {pct} of entries fought the trend.",
+    "trend_worse": "Counter-trend trades lost more on average.",
+    "trend_better": "Counter-trend trades did better, but don't get hooked.",
+    "roast": {
+      "TREND_MASTER": "Riding the trend isn't a slogan for you, it's muscle memory. {days} days, {trades} closed trades, {win_rate} win rate. You wait for the move, then pounce. Most people never learn that patience.",
+      "OVERTRADE": "You trade like you're clocking in for a shift: {fills} fills over {days} days, {fpd} a day on average. The exchange sees you as its favorite VIP.",
+      "KNIFE_CATCHER": "The harder it dumps, the faster you buy. {trades} closed trades at a {win_rate} win rate, but falling knives don't play fair, and one bad catch stings for weeks.",
+      "SCATTER_GUN": "You're no sniper. You walk in with a drum mag and spray. {assets} assets, {fills} fills, {days} days, {fpd} fills a day. Every ticker gets a turn.",
+      "PANIC_TRADER": "The chart twitches, you bail, then it rips. {fills} fills full of feelings: a {win_rate} win rate, but you never held the ones that mattered.",
+      "DIAMOND_HANDS": "You buy and lie down. Up or down, you stay horizontal. {days} days, {trades} closed trades: peak calm, or you forgot your password.",
+      "UNKNOWN": "Not enough data for the AI to read you yet. {fills} fills so far. Trade a bit longer and come back."
+    },
+    "roast_peak": "On {peak_date} you fired off {peak} fills in one day. Is your keyboard okay?",
+    "verdict": {
+      "S": "{win_rate} win rate, {pf} win/loss ratio, and you barely ever get liquidated. You're not trading, you're collecting rent.",
+      "A": "{win_rate} win rate, {pf} win/loss ratio. Solid. A little more aggression and S tier is in reach.",
+      "B": "A {win_rate} win rate says you can pick entries. A {pf} win/loss ratio says you can't pick exits. Good bones; now cap the big losers.",
+      "C": "{win_rate} win rate, {pf} win/loss ratio. Fading you might actually print. That's a talent too.",
+      "D": "{win_rate} win rate, {pf} win/loss ratio. The market thanks you for the liquidity. Stop-losses next time, please.",
+      "F": "{win_rate} win rate, {pf} win/loss ratio. Step away for a bit. A review is worth more than your next trade.",
+      "?": "Not enough closed trades to rank you yet. Come back with more history."
+    },
+    "rules": {
+      "ALT_DC": "No alt longs in a BTC death cross. You took {n} of them and won only {wr}.",
+      "LIQ": "Always set a stop on perps. {n} trades ended in liquidation; stop letting the liq price be your stop.",
+      "COUNTER": "Check the moving averages first. {pct} of your entries fought the trend; halve the size or skip it.",
+      "LOW_PF": "Cut losers faster than winners. Your win/loss ratio is {pf}; once a loss matches your average win, you're out.",
+      "OVERTRADE": "Set a daily trade limit. {fpd} fills a day, and the fees keep score.",
+      "SCATTER": "Less is more. You've traded {assets} assets; stick to the few you actually understand.",
+      "WORST": "Block {asset}. It's your worst asset; don't fall into the same hole a third time.",
+      "JOURNAL": "Write the reason before every entry. If you can't write one sentence, don't open it.",
+      "SIZE": "Keep your size fixed. Don't size up or down because of the last trade.",
+      "REVIEW": "Review once a month. Win rate and win/loss ratio don't lie."
+    },
+    "questions": {
+      "ALT_DC": "Which way are the moving averages pointing? Am I riding the trend, or betting it turns?",
+      "COUNTER": "Which way are the moving averages pointing? Am I riding the trend, or betting it turns?",
+      "LIQ": "If this trade is wrong, do I exit at my stop, or at the liquidation price?",
+      "LOW_PF": "Am I still holding this loser because the thesis holds, or because I can't admit I'm wrong?",
+      "OVERTRADE": "Is this a real setup, or am I just bored?",
+      "SCATTER": "Do I actually understand this coin, or is it just green today?",
+      "WORST": "Am I jumping into the same hole again?",
+      "DEFAULT": "Can I explain in one sentence why I'm opening this trade?"
+    }
   },
   "tldr": {
     "headline": "Net P&L {net} over {days} days ({start} → {end}), fees and funding included.",

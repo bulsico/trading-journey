@@ -773,7 +773,7 @@ def _trend(sm, lang):
     }
 
 
-def build(sm, se, op, dq, lang="en"):
+def build(sm, se, op, dq, lang="en", copy=None):
     from . import card as card_mod, report
     set_lang(lang)
     o = sm["overall"]
@@ -814,7 +814,7 @@ def build(sm, se, op, dq, lang="en"):
     page["trend"] = _trend(sm, lang)
     page["has"]["trend"] = page["trend"]["show"]
     page["profile"] = report.profile_block(sm, lang)
-    page["card"] = card_mod.page_block(sm, se, lang)
+    page["card"] = card_mod.page_block(sm, se, lang, copy)
     page["tldr"] = report.tldr(sm, page, lang)
     page["compact"] = False
     page["positions"]["rh_more"] = 0
@@ -837,15 +837,15 @@ def _pick(seq, n):
 
 def compact(page):
     """Shrink a built page in place (and return it):
-    - share card: only the default period in $ (no % or other periods); per-account cards are
+    - share card: only the default period (no other periods); per-account cards are
       dropped from the Page (they stay available via `lsl card --per-account`);
     - asset groups: top 5 best / 5 worst / 8 multi-venue;
     - per-account sparklines: 24 points; Robinhood positions: first 12 rows (`rh_more` counts the rest);
     - fields the Page template never reads (`scopes`, `assets.best`, `assets.worst`)."""
     C = page["card"]
     per = (C.get("default") or {}).get("period")
-    keep = "%s.usd" % per
-    C["variants"] = {keep: C["variants"][keep]} if per and keep in C["variants"] else {}
+    C["variants"] = {per: C["variants"][per]} if per and per in C["variants"] else {}
+    C["sizes"] = {k: v for k, v in C["sizes"].items() if k == per}
     C["periods"] = [x for x in C["periods"] if x["id"] == per]
     C["badges"] = {k: v for k, v in C["badges"].items() if k == per}
     C["accounts"] = []
@@ -871,17 +871,25 @@ def compact(page):
     return page
 
 
-def run(out_dir, lang="en", compact_=False):
-    """Rebuild page.json in out_dir from the compute outputs there, in `lang` (`compact_`: see compact())."""
+def run(out_dir, lang="en", compact_=False, copy_path=None):
+    """Rebuild page.json in out_dir from the compute outputs there, in `lang` (`compact_`: see compact();
+    `copy_path`: the bot's copy.json for the share card, checked by card.load_copy)."""
     docs = {n: read_json(os.path.join(out_dir, n + ".json"))
             for n in ("summary", "series", "open_positions", "data_quality")}
     missing = sorted(n for n, d in docs.items() if d is None)
     if missing:
         return {"error": "missing %s in %s" % (", ".join(missing), out_dir)}
-    page = build(docs["summary"], docs["series"], docs["open_positions"], docs["data_quality"], lang)
+    copy = None
+    if copy_path:
+        from . import card as card_mod
+        copy, probs = card_mod.load_copy(copy_path, docs["summary"], lang)
+        if probs:
+            return {"error": "copy.json rejected; fix it or rerun without --copy (templates)", "problems": probs}
+    page = build(docs["summary"], docs["series"], docs["open_positions"], docs["data_quality"], lang, copy)
     if compact_:
         compact(page)
     path = os.path.join(out_dir, "page.json")
     write_json(path, page)
     return {"status": "done", "out": os.path.abspath(path), "compact": bool(compact_),
+            "card_copy": page["card"]["copy_source"],
             "inline_bytes": len(json.dumps(page, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode())}

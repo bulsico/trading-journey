@@ -24,11 +24,14 @@ It is kept between runs so later runs sync incrementally; `--run` is an alias.
   lsl compute    [--data-dir DATA] [--scope SCOPE] [--out DIR] [--lang zh|en]
                  SCOPE: all (default) | rh | rh:<account> | hl | hl:<address>; outputs go to
                  DATA/out/<scope-slug>/ unless --out is given
-  lsl page       [--out DIR | --data-dir DATA --scope SCOPE] [--lang en|zh] [--compact]   rebuild page.json
+  lsl page       [--out DIR | --data-dir DATA --scope SCOPE] [--lang en|zh] [--compact] [--copy FILE]
+                                                     rebuild page.json
   lsl card       [--out DIR | --data-dir DATA --scope SCOPE] [--period all|90d|30d|7d]
-                 [--percent-only] [--lang en|zh] [--png] [--per-account]
-                                                     share card SVG (+PNG); --per-account adds
-                                                     cards/<account-slug>.svg per account
+                 [--lang en|zh] [--png] [--per-account] [--copy FILE]
+                                                     tall share card SVG (+PNG), no dollar amounts;
+                                                     --per-account adds cards/<account-slug>.svg per
+                                                     account; --copy uses the bot's checked copy.json
+                                                     (--percent-only: accepted, no-op)
   lsl purge      [--data-dir DATA] [--source rh|hl|all] [--yes]  wipe stored account data
   lsl selftest
 """
@@ -128,13 +131,15 @@ def main(argv=None):
     pg.add_argument("--lang", default="en", choices=["zh", "en"])
     pg.add_argument("--compact", action="store_true",
                     help="small payload for pasting into one Page write (fixed trims, see lsl/page.py compact)")
+    pg.add_argument("--copy", help="bot-written share-card copy.json (persona/verdict/rules/question); see lsl/card.py")
     cd = sub.add_parser("card")
     _data(cd)
     cd.add_argument("--out", help="dir holding the compute outputs (default DATA/out/<scope-slug>)")
     cd.add_argument("--scope", default="all")
     cd.add_argument("--lang", default="en", choices=["zh", "en"])
     cd.add_argument("--period", default="all", choices=["all", "90d", "30d", "7d"])
-    cd.add_argument("--percent-only", action="store_true", help="hide dollar amounts")
+    cd.add_argument("--percent-only", action="store_true", help="no-op (the card never shows dollar amounts)")
+    cd.add_argument("--copy", help="bot-written copy.json (persona/verdict/rules/question); validated, see lsl/card.py")
     cd.add_argument("--png", action="store_true", help="also rasterize to PNG if a converter is installed")
     cd.add_argument("--per-account", action="store_true",
                     help="also one card per account (several accounts) into <out>/cards/<account-slug>.svg")
@@ -216,13 +221,13 @@ def main(argv=None):
         return 1 if "error" in res else 0
     if a.cmd == "page":
         from . import page
-        res = page.run(_scope_out(a), a.lang, a.compact)
+        res = page.run(_scope_out(a), a.lang, a.compact, a.copy)
         sys.stdout.write(dumps(res))
         return 1 if "error" in res else 0
     if a.cmd == "card":
         from . import card
         res = card.run(_scope_out(a), period=a.period, percent_only=a.percent_only, png=a.png, lang=a.lang,
-                       per_account_cards=a.per_account)
+                       per_account_cards=a.per_account, copy_path=a.copy)
         sys.stdout.write(dumps(res))
         return 1 if "error" in res else 0
     if a.cmd == "sources":
