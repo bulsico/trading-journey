@@ -875,19 +875,23 @@ def rasterizer():
         return None
 
 
-def to_png(svg_path, png_path):
+PNG_SCALE = 2  # retina: a 1080-wide card rasterizes to 2160 px so text stays crisp when zoomed or shared
+
+
+def to_png(svg_path, png_path, scale=PNG_SCALE):
     tool = rasterizer()
     with open(svg_path, encoding="utf-8") as f:
         w, h = size_of(f.read())
+    pw, ph = w * scale, h * scale
     if tool == "rsvg-convert":
-        cmd = ["rsvg-convert", "-w", str(w), "-h", str(h), "-o", png_path, svg_path]
+        cmd = ["rsvg-convert", "-w", str(pw), "-h", str(ph), "-o", png_path, svg_path]
     elif tool == "cairosvg":
-        cmd = ["cairosvg", svg_path, "-o", png_path]
+        cmd = ["cairosvg", svg_path, "-s", str(scale), "-o", png_path]
     elif tool == "inkscape":
-        cmd = ["inkscape", svg_path, "--export-type=png", "--export-filename=" + png_path]
+        cmd = ["inkscape", svg_path, "--export-type=png", "--export-width=%d" % pw, "--export-filename=" + png_path]
     elif tool == "cairosvg-module":
         import cairosvg
-        cairosvg.svg2png(url=svg_path, write_to=png_path)
+        cairosvg.svg2png(url=svg_path, write_to=png_path, scale=scale)
         return tool
     else:
         return None
