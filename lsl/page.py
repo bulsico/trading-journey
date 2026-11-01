@@ -837,7 +837,7 @@ def _pick(seq, n):
 
 def compact(page):
     """Shrink a built page in place (and return it):
-    - share card: only the default period (no other periods); per-account cards are
+    - share cards: only the default period's set (no other periods); per-account cards are
       dropped from the Page (they stay available via `lsl card --per-account`);
     - asset groups: top 5 best / 5 worst / 8 multi-venue;
     - per-account sparklines: 24 points; Robinhood positions: first 12 rows (`rh_more` counts the rest);

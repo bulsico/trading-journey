@@ -20,10 +20,10 @@ combination (at least one):
 ## Use it from Grok Bot
 
 Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo at tag
-`v0.2.10`, run the self-test, ask which language to use, collect sources (Hyperliquid
+`v0.2.13`, run the self-test, ask which language to use, collect sources (Hyperliquid
 addresses; Robinhood via the official connector, whose namespace it discovers),
 sync, fetch daily candles for the SMA trend tags (`lsl candles fetch`), compute one combined report (with a per-account breakdown when there are
-several accounts; single-account reports on request), render the share card
+several accounts; single-account reports on request), render the share cards
 (per-account cards on request), build the
 Page from `bot/page-template.tsx`, and write the review
 (`bot/report-template.en.md` or `bot/report-template.zh.md`; background in
@@ -61,10 +61,10 @@ python3 bin/lsl hl tokens --unit                           # public spotMeta loo
 
 `compute` writes `summary.json`, `series.json`, `open_positions.json`,
 `data_quality.json` and `page.json` to `DATA/out/<scope-slug>/` (`--out DIR`
-overrides). `card` writes `share-card.svg` (and `share-card.png` with `--png`)
-next to them. With no source at all, `compute` returns an error asking for one.
+overrides). `card` writes the three story cards `share-card-{1-stats,2-facts,3-roast}.svg`
+(and with `--png` a 2x `.png` and `.zip` each, plus `share-cards.zip`) next to them. With no source at all, `compute` returns an error asking for one.
 `page --compact` rewrites `page.json` small enough to paste into one Page write:
-same numbers, shorter lists (one share card for the default period, top asset groups, 24-point
+same numbers, shorter lists (share cards for the default period only, top asset groups, 24-point
 sparklines, first 12 Robinhood positions); see `lsl/page.py` `compact()`.
 
 ### Scopes
@@ -112,28 +112,39 @@ account" section of the Page and the chat report (hidden for one account):
 
 ### Share card
 
-`lsl card` draws a tall 1080-wide SVG (byte-identical for the same input) in the
+`lsl card` draws a set of three 9:16 story cards, each a 1080×1920 SVG
+(byte-identical for the same input) with a 2160×3840 PNG on `--png`, in the
 style of a casual trader personality test, with no dollar amounts anywhere:
 only percentages, ratios, counts, days and asset names (drawdown is
 `drawdown_of_peak`, % of the peak cumulative P&L). Dark background, mono
-numbers, yellow emoji section headers and ◆ dividers:
+numbers, yellow emoji section headers; body text is about 34px and up, key
+numbers bigger, nothing below about 26px, and a layout check
+(`card.layout_problems`) keeps every element inside the card:
 
-- header: brand, scope (sources, "N accounts"), window and as-of date;
-- badge + tagline, return on volume with a sparkline, a stats box (win rate,
+- `1-stats`: brand, scope (sources, "N accounts"), window and as-of date;
+  badge + tagline, return on volume with a sparkline, a stats box (win rate,
   profit factor, closed trades, assets, active days, drawdown of peak; Sharpe
-  and Sortino on shorter periods), best / worst asset, the last-50 W/L strip;
-- 🎲 fun facts (`lsl/funfacts.py`, up to 10 cells over the card's window): most
+  and Sortino on shorter periods), best / worst asset, the W/L strip;
+- `2-facts`: 🎲 fun facts (`lsl/funfacts.py`, up to 10 rows over the card's window): most
   traded ticker, long vs short split, most loved / arch-nemesis asset by win
   rate, longest win / loss streaks, median / shortest / longest hold, busiest
   day, favorite weekday, venue split or go-to account, stocks / crypto / options
   mix, liquidations. Each is hidden when the scope has no data for it (never
-  shown as 0);
-- 🧬 trader type and modifiers, a roast built from counts (fills, days, fills per
+  shown as 0). Facts that do not fit are dropped (lowest priority first)
+  rather than shrunk; with no facts at all the card is left out;
+- `3-roast`: 🧬 trader type and modifiers, a roast built from counts (fills, days, fills per
   day, busiest day), the trend-discipline line (% of entries against the SMA
   trend) and five 0-10 score bars;
-- 📊 the S-F grade ladder with the user's grade highlighted, plus a verdict;
-- 🤖 three rules (bold lead + detail) and one question in a red-bordered box;
-- footer "Trading Journey · 交易旅程".
+  📊 the S-F grade ladder with the user's grade highlighted, plus a verdict;
+  🤖 three rules (bold lead + detail) and one question in a red-bordered box;
+- every card: a footer with the brand ("Trading Journey", plus "交易旅程" in
+  Chinese) and "1/3", "2/3", "3/3".
+
+Files: `share-card-1-stats.svg`, `share-card-2-facts.svg`,
+`share-card-3-roast.svg`; with `--png` each also gets a `.png` and a one-PNG
+stored `.zip`, and `share-cards.zip` holds the three PNGs in order (stored,
+byte-stable). The JSON result lists them in `cards_set`; `zip` is
+`share-cards.zip`.
 
 Persona, scores and grade are all-time for the card's scope; the stats, badge,
 strip and sparkline follow `--period`. The persona paragraph, verdict, rules and
@@ -146,16 +157,17 @@ which is checked first: no `$`, every number must appear in the script output
 rejected file is an error listing the problems; nothing is drawn.
 `--percent-only` is accepted as a no-op. `--png` rasterizes with the first of
 `rsvg-convert`, `cairosvg` or `inkscape` it finds; without one it returns an
-install hint and the SVG is still written. The Page shows the card as an image
-(capped at 540px wide) with a period toggle, but has no download buttons: it
-runs in a sandboxed frame with no download, blob or clipboard support. The PNG
-attached in chat is the download path; the bot always attaches the combined
-card after the report (installing a rasterizer first if needed) and any other
-card on request.
+install hint and the SVGs are still written. The Page shows the three cards side
+by side as images with a period toggle, but has no download buttons: it
+runs in a sandboxed frame with no download, blob or clipboard support. The chat
+attachments are the download path; the bot always attaches the combined set
+after the report (the three PNGs in order, then `share-cards.zip`, which holds
+the sharp originals; installing a rasterizer first if needed) and any other set
+on request.
 
 With several accounts the combined card adds "N accounts" to its scope line.
-`--per-account` (scope `all`) also writes `cards/<account-slug>.svg` (+ `.png`)
-for every account, from that account's own profile, persona, liquidations and
+`--per-account` (scope `all`) also writes `cards/<account-slug>-{1-stats,2-facts,3-roast}.svg`
+(+ `.png`, `.zip`) and `cards/<account-slug>-share-cards.zip` for every account, from that account's own profile, persona, liquidations and
 equity curve (template copy); it honors `--period`, and an account with too
 little data for the period is listed as `skipped` with its `available_periods`.
 The Page previews the same cards through its account picker; the PNGs come in

@@ -229,7 +229,7 @@
     "hl_spot": "Hyperliquid spot",
     "rh_positions": "Robinhood",
     "card_note": "Card follows the report scope. Percentages and counts only, never dollar amounts.",
-    "card_save": "The downloadable PNG of this card is attached in the chat. Where your browser allows it, right-click or long-press the image and choose Save Image.",
+    "card_save": "The three story cards are attached in the chat as PNGs, plus share-cards.zip with the full-resolution originals. Where your browser allows it, right-click or long-press a card and choose Save Image.",
     "summary_fmt": "{scope} · {period} ({days} days) · data as of {as_of}. Every figure comes from trading-journey's deterministic outputs.",
     "since_fmt": "Since {label}",
     "best_months": "Best months",
@@ -345,7 +345,7 @@
   },
   "card": {
     "brand": "TRADING JOURNEY",
-    "footer": "Trading Journey · 交易旅程",
+    "footer": "Trading Journey",
     "all_accounts": "All accounts",
     "net_pnl": "Net P&L",
     "return_on_volume": "Return on volume",
@@ -621,7 +621,7 @@
     "list_sep": ", ",
     "clause_sep": "; ",
     "with_shares": "{body} {shares}.",
-    "card_in_picker": "This account's card is in the Share card picker above; its PNG is available in the chat on request.",
+    "card_in_picker": "This account's cards are in the Share card picker above; their PNGs are available in the chat on request.",
     "card_on_request": "Ask the bot for this account's card."
   },
   "trend": {

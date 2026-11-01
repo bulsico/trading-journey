@@ -111,16 +111,22 @@ class Combinations(Base):
             self.assertEqual(sm["profile"]["all"]["closed_trades"], sm["overall"]["closed_trades"])
             # card: every listed period renders; output is deterministic
             self.assertTrue(pg["card"]["periods"])
-            for k, s in pg["card"]["variants"].items():
-                self.assertTrue(s.startswith("<svg") and s.rstrip().endswith("</svg>"), k)
+            for k, ss in pg["card"]["variants"].items():
+                self.assertIn(len(ss), (2, 3), k)
+                for s in ss:
+                    self.assertTrue(s.startswith("<svg") and s.rstrip().endswith("</svg>"), k)
             r1 = card.run(res["out"], lang=lang)
             self.assertEqual(r1["status"], "done", r1)
-            with open(r1["svg"], "rb") as f:
-                a = f.read()
+            self.assertEqual(r1["svg"], r1["cards_set"][0]["svg"])
+            blobs = []
+            for c in r1["cards_set"]:
+                with open(c["svg"], "rb") as f:
+                    blobs.append(f.read())
             card.run(res["out"], lang=lang)
-            with open(r1["svg"], "rb") as f:
-                self.assertEqual(f.read(), a)
-            self.assertEqual(a.decode(), pg["card"]["variants"]["all"])
+            for c, a in zip(r1["cards_set"], blobs):
+                with open(c["svg"], "rb") as f:
+                    self.assertEqual(f.read(), a)
+            self.assertEqual([a.decode() for a in blobs], pg["card"]["variants"]["all"])
             with open(os.path.join(res["out"], "series.json")) as f:
                 se = json.load(f)
             # no dollar sign on any card: every scope (combined + each account), every period, both languages
@@ -291,13 +297,13 @@ class Scopes(Base):
         self.assertEqual(os.path.basename(outs["rh:a1"]), "rh-a1")
         self.assertEqual(compute.scope_out(self.d, "hl:" + OTHER), outs["hl:" + OTHER])
         for o in outs.values():
-            for f in OUT_FILES + ("share-card.svg",):
+            for f in OUT_FILES + ("share-card-1-stats.svg", "share-card-3-roast.svg"):
                 with open(os.path.join(o, f)) as fh:
                     txt = fh.read()
                 for secret in ("TEST0001", "TEST0002", "RHS1", "RHS2", ADDR[2:], OTHER[2:]):
                     self.assertNotIn(secret, txt, (o, f))
         # the card names its scope
-        with open(os.path.join(outs["rh:a1"], "share-card.svg")) as fh:
+        with open(os.path.join(outs["rh:a1"], "share-card-1-stats.svg")) as fh:
             self.assertIn("Robinhood Roth IRA …0002", fh.read())
 
     def test_bad_scope(self):

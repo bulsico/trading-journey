@@ -23,8 +23,8 @@ installs one when missing).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.10 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.10 2>/dev/null; git checkout -q v0.2.10
+[ -d $REPO/.git ] || git clone --branch v0.2.13 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.13 2>/dev/null; git checkout -q v0.2.13
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```
@@ -203,24 +203,35 @@ Hyperliquid uses `closedPnl` per order; funding is reported separately. HL spot
 counts only HYPE and Unit-bridged tokens. The same asset across venues is
 grouped via `lsl/data/asset_map.json`; ambiguous ones stay ungrouped.
 
-## 5. Share card
+## 5. Share cards
 
-The card always follows the report scope and language. It is a tall, casual
-portrait (1080 wide) in the style of a trader personality test, and it never
-shows a dollar amount: only percentages, ratios, counts, days and asset names
-(drawdown is shown as `drawdown_of_peak`, % of the peak cumulative P&L). Top to
-bottom: brand, scope and window; badge + tagline; return on volume with a
-sparkline; win rate / profit factor / closed trades / assets / active days /
-drawdown of peak (Sharpe and Sortino on 90d/30d/7d); best and worst asset; the
-W/L strip; 🎲 fun facts (below); 🧬 trader type, a roast built from counts and the trend-discipline
-line; five score bars (x/10); 📊 the S-F grade ladder with "you are here" and a
-verdict; 🤖 three rules and one question; the "Trading Journey · 交易旅程"
-footer. Persona, scores and grade are all-time for the card's scope (each
-account's own on a per-account card); the stats, badge, strip and sparkline
+The share card is a set of three 9:16 story cards (1080×1920 each, with a 2x
+PNG of 2160×3840) that always follow the report scope and language. They are
+casual, in the style of a trader personality test, and never show a dollar
+amount: only percentages, ratios, counts, days and asset names (drawdown is
+shown as `drawdown_of_peak`, % of the peak cumulative P&L). Text is large enough
+to read on a phone (body about 34px and up, key numbers bigger, nothing below
+about 26px), and it is checked to stay inside the card.
+
+1. `1-stats`: brand, scope and window; badge + tagline; return on volume with a
+   sparkline; win rate / profit factor / closed trades / assets / active days /
+   drawdown of peak (Sharpe and Sortino on 90d/30d/7d); best and worst asset;
+   the W/L strip.
+2. `2-facts`: 🎲 fun facts (below), one per row. If they do not all fit, the
+   lowest-priority facts are dropped instead of shrunk. When the window has no
+   facts at all this card is left out and the set has two cards.
+3. `3-roast`: 🧬 trader type and a roast built from counts and the
+   trend-discipline line; five score bars (x/10); 📊 the S-F grade ladder with
+   "you are here" and a verdict; 🤖 three rules and one question (the AI soul
+   box).
+
+Every card has a footer with the brand and its position ("1/3", "2/3", "3/3").
+Persona, scores and grade are all-time for the card's scope (each account's
+own on a per-account card); the stats, badge, strip, sparkline and fun facts
 follow `--period`.
 
 The 🎲 fun-facts grid (`summary.json` → `fun[scope][period]`, from
-`lsl/funfacts.py`) shows up to 10 two-column cells over the card's window: most
+`lsl/funfacts.py`) shows up to 10 facts over the card's window: most
 traded ticker (trades and share), long vs short split, most loved and
 arch-nemesis asset (win rate, needs two assets with 3+ trades), longest win and
 loss streaks, median hold (shortest and longest below it), busiest day, favorite
@@ -259,21 +270,27 @@ which one was used (`copy.json` or `template`).
 python3 bin/lsl card --data-dir $DATA --scope $SCOPE --lang $LANG_ [--period all|90d|30d|7d] --copy $OUT/card-copy.json --png
 ```
 
-Writes `$OUT/share-card.svg` (byte-identical for the same input) and, when a
-rasterizer is installed (`rsvg-convert`, `cairosvg` or `inkscape`),
-`$OUT/share-card.png` plus `$OUT/share-card.zip` (that PNG, uncompressed, for download). `--percent-only` is still accepted and does nothing (the
-card never shows dollars).
+Writes `$OUT/share-card-1-stats.svg`, `$OUT/share-card-2-facts.svg` and
+`$OUT/share-card-3-roast.svg` (byte-identical for the same input) and, when a
+rasterizer is installed (`rsvg-convert`, `cairosvg` or `inkscape`), a 2x `.png`
+and a one-PNG `.zip` beside each, plus `$OUT/share-cards.zip`: the three 2x
+PNGs in order, uncompressed (stored), byte-stable. The result's `cards_set`
+lists the cards in order (`id`, `svg`, `png`, `zip`) and `zip` is
+`share-cards.zip`. Old single-card files (`share-card.svg/png/zip`) are
+removed. `--percent-only` is still accepted and does nothing (the cards never
+show dollars).
 
 The chat attachment is the only real download path. The Page runs in a sandboxed
-frame with no download, blob or clipboard support, so it shows the card as an
-image with no download buttons and its note says the PNG is in the chat. So:
+frame with no download, blob or clipboard support, so it shows the cards as
+images with no download buttons and its note says the PNGs are in the chat. So:
 
-- Always attach the combined card to the chat right after the report, without
-  being asked, as two attachments: `share-card.png` (inline preview) and then
-  `share-card.zip` (the result's `"zip"`), the full-resolution 2x original in a
-  stored zip. Chat clients recompress inline images, so the zip is the real
-  download; say once that the zip holds the sharp original. Do the same (PNG
-  preview plus its `.zip`) for every other card you attach.
+- Always attach the combined set to the chat right after the report, without
+  being asked: the three PNGs in order (`share-card-1-stats.png`,
+  `share-card-2-facts.png`, `share-card-3-roast.png`, i.e. `cards_set[*].png`),
+  then `share-cards.zip` (the result's `"zip"`). Chat clients recompress inline
+  images, so the zip is the real download; say once that the zip holds the
+  sharp originals. Do the same (PNGs in order, then that set's
+  `share-cards.zip`) for every other card set you attach.
 - If the result says `"png": null` (no rasterizer), install one first, then
   rerun the same `lsl card ... --png` command:
   ```bash
@@ -282,30 +299,35 @@ image with no download buttons and its note says the PNG is in the chat. So:
          && export PATH=~/.lsl-venv/bin:$PATH; }      # macOS: brew install librsvg
   ```
   `lsl card` finds `rsvg-convert`, `cairosvg` (CLI on `PATH`) or `inkscape`.
-  Attach `share-card.svg` only as a last resort, when no rasterizer can be
-  installed, and say once why it is an SVG.
+  Attach the SVGs only as a last resort, when no rasterizer can be installed,
+  and say once why they are SVGs.
 
 If a period has too little data the result is an error listing
 `available_periods`; pick one of those. The card never shows an account number.
 
-Any other card (another period or one account) is attached as a PNG when the
-user asks for it, made with `lsl card ... --png` (`--period`, `--per-account`).
-The Page's period toggle only previews cards; it cannot save them.
+Any other card set (another period or one account) is attached the same way
+(three PNGs in order, then its zip) when the user asks for it, made with `lsl card ... --png` (`--period`, `--per-account`).
+The Page's period toggle only previews cards; it cannot save them. Each run
+of `lsl card` overwrites the files in `$OUT`, so attach one set before
+rendering the next.
 
 With several accounts the combined card says "N accounts" on its scope line.
-After the report, attach the combined card and offer per-account cards ("want a
+After the report, attach the combined set and offer per-account cards ("want a
 card for just one wallet or account?"). On request:
 
 ```bash
 python3 bin/lsl card --data-dir $DATA --scope all --lang $LANG_ --per-account [--period ...] --png
 ```
 
-This also writes `$OUT/cards/<account-slug>.svg` (+ `.png`) for every account,
-in By-account order (per-account cards always use the templates, since your
-copy describes the combined report); the result's `cards[]` lists each one
-(`label`, `svg`, `png`), or `skipped` with that account's `available_periods`
-when it has too little data for the period. Attach only the PNG(s) the user
-asked for. The Page previews the same cards behind its account picker (view only).
+This also writes `$OUT/cards/<account-slug>-1-stats.svg`, `-2-facts.svg`,
+`-3-roast.svg` (each with a `.png` and `.zip`) and
+`$OUT/cards/<account-slug>-share-cards.zip` for every account, in By-account
+order (per-account cards always use the templates, since your copy describes
+the combined report); the result's `cards[]` lists each account (`label`,
+`cards_set`, `zip`), or `skipped` with that account's `available_periods` when
+it has too little data for the period. Attach only the set(s) the user asked
+for: its three PNGs in order, then its `<account-slug>-share-cards.zip`. The
+Page previews the same cards behind its account picker (view only).
 
 ## 6. Build the Page
 
@@ -345,17 +367,18 @@ With candles, a "Trend discipline" section shows tag coverage, callouts, the
 with / counter / neutral table, regime and direction tables, and the split by
 venue and account.
 It opens with the TL;DR, the share card (account picker when there are several
-accounts, period toggle, the tall card as an image capped at 540px wide plus a
-line saying the PNG is attached in the chat; no download buttons), and the trader
+accounts, period toggle, the three story cards side by side as images plus a
+line saying the PNGs and share-cards.zip are attached in the chat; no download buttons), and the trader
 profile ($/% toggle, venue selector, 7D/30D/90D/All table). The Page is
 private to the user, so real tickers and amounts are fine there.
 
 `--compact` keeps every number the Page shows and only shortens lists: the
-share card is the default period only (other-period and per-account cards stay
+share cards are the default period only (other-period and per-account cards stay
 available via `lsl card`; account rows say to ask you),
 asset groups are the top 5 best / 5 worst / 8 multi-venue, account sparklines
 use 24 points, and Robinhood positions show the first 12 rows with a "N more"
-line. The Page cannot save files; every card download is a PNG you attach in chat
+line. The Page cannot save files; every card download is a PNG set (plus its
+zip) you attach in chat
 (step 5).
 
 ## 7. Chat report
@@ -370,7 +393,8 @@ follows when there is more than one account. Then follow the template for the la
 - English: `bot/report-template.en.md`
 
 Read `context/market-context.md` as background first. After the report, always
-attach the combined share card PNG (step 5; SVG only as a last resort). Keep it
+attach the combined share cards: the three PNGs in order, then
+`share-cards.zip` (step 5; SVG only as a last resort). Keep it
 under ~1500 words (中文 1500 字).
 
 Privacy: the report, card and Page are for the user only. Never post them, and

@@ -18,25 +18,26 @@ const G = D.assets.groups as any;
 const groupRow = (key: string) => (G.rows as any[]).find((r) => r.group === key)!;
 const venueSymbol = (v: any) => (v.multiplier_display ? `${v.raw_symbol} (${v.multiplier_display})` : v.raw_symbol);
 const CARD = D.card as any;
-const VARIANTS = CARD.variants as Record<string, string>;
-// The card is shown as an <Image> with an SVG data URI. The Page frame is sandboxed and the kit has no
-// download/blob/clipboard API, so there are no download buttons: the bot attaches the PNG in chat.
+const VARIANTS = CARD.variants as Record<string, string[]>;
+// Each period's card set is three 9:16 story cards (stats, fun facts, roast; the facts card is left out
+// when there are none), each shown as an <Image> with an SVG data URI. The Page frame is sandboxed and the kit has no
+// download/blob/clipboard API, so there are no download buttons: the bot attaches the PNGs and share-cards.zip in chat.
 const svgUrl = (svg: string) => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
 
 const ACC = D.accounts as any;
 const TR = D.trend as any;
 const CARD_ACCTS = (CARD.accounts || []) as any[];
 const cardFor = (key: string) => (key === "all" ? CARD : CARD_ACCTS.find((c) => c.key === key) || CARD);
-// The account's card in the chosen period, else its first available period.
-const acctSvg = (c: any, period: string) =>
+// The account's card set in the chosen period, else its first available period.
+const acctSvgs = (c: any, period: string): string[] | undefined =>
   c ? c.variants[period] || (c.default.period ? c.variants[c.default.period] : undefined) : undefined;
-// The card is a tall portrait (1080 wide); cap its on-page width so it stays readable without scrolling forever.
-const CARD_WIDTH = "min(100%, 540px)";
+// Story cards are 1080x1920 portraits; three sit side by side in a Grid, each capped so they stay phone-sized.
+const CARD_WIDTH = "min(100%, 360px)";
 
 function accountSection(r: any, period: string) {
   const L = ACC.labels as Record<string, string>;
   const c = CARD_ACCTS.find((x) => x.key === r.key);
-  const svg = acctSvg(c, period);
+  const svg = (acctSvgs(c, period) || []).length > 0;
   const sp = r.spark as any;
   return (
     <Section key={r.key} heading={`${r.label} · ${r.net_display}`} caption={r.caption} collapsible defaultOpen={false}>
@@ -106,7 +107,7 @@ export default function TradingJourney() {
   const periods = CA.periods as { id: string; label: string }[];
   const [period, setPeriod] = useState<string>(CARD.default.period);
   const cper = periods.some((p) => p.id === period) ? period : CA.default.period;
-  const svg = cper ? (CA.variants as Record<string, string>)[cper] : undefined;
+  const svgs = (cper ? (CA.variants as Record<string, string[]>)[cper] : undefined) || [];
   const cardLabel = cacct === "all" ? D.scope.label : CA.label;
   const AL = ACC.labels as Record<string, string>;
   const picker = [{ value: "all", label: AL.all_accounts }, ...CARD_ACCTS.map((c) => ({ value: c.key as string, label: c.label as string }))];
@@ -131,9 +132,13 @@ export default function TradingJourney() {
         <Section heading={U.share_card} caption={`${cardLabel} · ${U.card_note}`}>
           {CARD_ACCTS.length ? <Select label={AL.picker} options={picker} value={cacct} onChange={setCacct} /> : null}
           {periods.length > 1 ? <Segmented options={periods.map((p) => ({ value: p.id, label: p.label }))} value={cper} onChange={setPeriod} /> : null}
-          {svg ? (
+          {svgs.length ? (
             <>
-              <Image src={svgUrl(svg)} alt={`${U.share_card} · ${cardLabel}`} fit="contain" width={CARD_WIDTH} />
+              <Grid columns={svgs.length}>
+                {svgs.map((svg, i) => (
+                  <Image src={svgUrl(svg)} key={i} alt={`${U.share_card} · ${cardLabel} · ${i + 1}/${svgs.length}`} fit="contain" width={CARD_WIDTH} />
+                ))}
+              </Grid>
               <Text>{U.card_save}</Text>
             </>
           ) : (

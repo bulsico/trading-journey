@@ -1,5 +1,5 @@
-"""v0.2.8 share card: tall, casual, no dollar amounts; bot copy.json is checked against the script output.
-All data is generated."""
+"""Share cards (v0.2.13: three 1080x1920 story cards), casual, no dollar amounts; bot copy.json is
+checked against the script output.  All data is generated."""
 import json
 import os
 
@@ -29,12 +29,16 @@ class Card(Base):
             for h in ("h_persona", "h_grade", "h_soul"):
                 self.assertIn(card.esc(T[h][1]), s, h)
             self.assertIn(card.esc(T["footer"]), s)
-            for g in "SABCDF":
-                self.assertIn(card.esc(Lb["grades"][g]), s)
+            for g in "SABCDF":   # the ladder: full labels, or letter chips at the compact tiers
+                self.assertTrue(card.esc(Lb["grades"][g]) in s or (">%s</text>" % g) in s, g)
+            self.assertIn(card.esc(Lb["grades"][sm["persona"]["grade"]]), s)
             self.assertIn(card.esc(Lb["archetypes"][sm["persona"]["archetype"]]), s)
-            w, h = card.size_of(s)
-            self.assertEqual(w, 1080)
-            self.assertGreater(h, 1600)  # tall portrait
+            cs = card.svgs(card.data(sm, se), lang)
+            self.assertEqual([i for i, _s in cs], list(card.CARD_IDS))
+            for n, (cid, one) in enumerate(cs):
+                self.assertEqual(card.size_of(one), (1080, 1920), cid)
+                self.assertEqual(card.layout_problems(one), [], (lang, cid))
+                self.assertIn(">%d/3</text>" % (n + 1), one)
             # page variants are keyed by period only
             self.assertEqual(sorted(pg["card"]["variants"]), sorted(card.available(sm)))
             self.assertEqual(pg["card"]["copy_source"], "template")
@@ -86,7 +90,7 @@ class Card(Base):
             json.dump({"verdict": "进场不错，出场太慢。"}, f, ensure_ascii=False)
         r = card.run(out, lang="zh", copy_path=p)
         self.assertEqual((r["status"], r["copy"]), ("done", "copy.json"))
-        with open(r["svg"], encoding="utf-8") as f:
+        with open(r["cards_set"][-1]["svg"], encoding="utf-8") as f:
             self.assertIn("出场太慢", f.read())
         r2 = page.run(out, "zh", True, p)
         self.assertEqual(r2["card_copy"], "copy.json")

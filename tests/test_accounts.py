@@ -107,19 +107,27 @@ class Breakdown(Base):
         rows = sm["accounts"]["rows"]
         self.assertEqual([c["account"] for c in r1["cards"]], [r["key"] for r in rows])
         made = [c for c in r1["cards"] if "svg" in c]
-        self.assertEqual(sorted(os.listdir(os.path.join(out, "cards"))), sorted(c["slug"] + ".svg" for c in made))
+        self.assertEqual(sorted(os.listdir(os.path.join(out, "cards"))),
+                         sorted(os.path.basename(x["svg"]) for c in made for x in c["cards_set"]))
         self.assertTrue(made)
+        for c in made:
+            self.assertEqual([os.path.basename(x["svg"]) for x in c["cards_set"]][-1], c["slug"] + "-3-roast.svg")
         blobs = {}
         for c in made:
-            with open(c["svg"], "rb") as f:
-                blobs[c["slug"]] = f.read()
+            ss = []
+            for x in c["cards_set"]:
+                with open(x["svg"], "rb") as f:
+                    ss.append(f.read())
+            blobs[c["slug"]] = ss
         card.run(out, per_account_cards=True)
         for c in made:
-            with open(c["svg"], "rb") as f:
-                self.assertEqual(f.read(), blobs[c["slug"]], c["slug"])  # deterministic
+            for x, b in zip(c["cards_set"], blobs[c["slug"]]):
+                with open(x["svg"], "rb") as f:
+                    self.assertEqual(f.read(), b, c["slug"])  # deterministic
         se = load(out, "series.json")
         for c, r in ((c, next(r for r in rows if r["key"] == c["account"])) for c in made):
-            s = blobs[c["slug"]].decode()
+            ss = [b.decode() for b in blobs[c["slug"]]]
+            s = "".join(ss)
             self.assertIn(r["label"].replace("&", "&amp;"), s)
             d = card.data(sm, se, "all", r["key"])
             self.assertEqual(d["scope_kind"], "account")
@@ -128,7 +136,9 @@ class Breakdown(Base):
             self.assertLessEqual(abs(d["p"]["net_pnl"] - r["net_pnl"]), 0.011, r["key"])
             self.assertEqual((d["p"]["closed_trades"], d["p"]["win_rate"]), (r["closed_trades"], r["win_rate"]))
             pa = next(x for x in pg["card"]["accounts"] if x["key"] == r["key"])
-            self.assertEqual(pa["variants"]["all"], s)
+            self.assertEqual(pa["variants"]["all"], ss)
+            for one in ss:
+                self.assertEqual(card.layout_problems(one), [], r["key"])
             self.assertNotIn("$", s)
             # per-account persona (all-time, that account's own trades) is what the card shows
             pz = sm["scopes"][r["key"]]["persona"]
