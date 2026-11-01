@@ -468,6 +468,99 @@
       "SCATTER": "Do I actually understand this coin, or is it just green today?",
       "WORST": "Am I jumping into the same hole again?",
       "DEFAULT": "Can I explain in one sentence why I'm opening this trade?"
+    },
+    "h_fun": [
+      "🎲",
+      "Fun facts"
+    ],
+    "fun": {
+      "most_traded": [
+        "🔁",
+        "Most traded"
+      ],
+      "long_short": [
+        "⚖️",
+        "Long vs short"
+      ],
+      "loved": [
+        "💚",
+        "Most loved asset"
+      ],
+      "hated": [
+        "💔",
+        "Arch-nemesis asset"
+      ],
+      "streaks": [
+        "🔥",
+        "Longest streaks"
+      ],
+      "time_held": [
+        "⏱️",
+        "Median hold"
+      ],
+      "busiest_day": [
+        "📅",
+        "Busiest day"
+      ],
+      "weekday": [
+        "🗓️",
+        "Favorite weekday"
+      ],
+      "venues": [
+        "🏦",
+        "Venue split"
+      ],
+      "top_account": [
+        "🏦",
+        "Go-to account"
+      ],
+      "classes": [
+        "🧺",
+        "Asset mix"
+      ],
+      "liquidated": [
+        "💥",
+        "Liquidations"
+      ]
+    },
+    "fun_fmt": {
+      "most_traded": "{ticker} · {trades} ({share})",
+      "trades_1": "1 trade",
+      "trades_n": "{n} trades",
+      "long_short": "{long} long · {short} short",
+      "asset_wr": "{ticker} · {wr} wins ({trades})",
+      "streaks": "{w}W · {l}L in a row",
+      "hold_sub": "shortest {lo} · longest {hi}",
+      "busiest_day": "{date} · {fills} fills",
+      "weekday": "{day} · {share} of fills",
+      "top_account_sub": "{share} of trades · {n} accounts",
+      "liq_n": "{n} trades liquidated",
+      "liq_1": "1 trade liquidated",
+      "liq_0": "0 — clean sheet!"
+    },
+    "units": {
+      "m": "{n}m",
+      "h": "{n}h",
+      "d": "{n}d",
+      "lt1": "<1m"
+    },
+    "weekdays": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday"
+    ],
+    "classes": {
+      "stocks": "Stocks",
+      "crypto": "Crypto",
+      "options": "Options"
+    },
+    "venues": {
+      "hl": "Hyperliquid",
+      "rh": "Robinhood"
     }
   },
   "tldr": {

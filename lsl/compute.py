@@ -22,7 +22,7 @@ import math
 import os
 from collections import defaultdict
 
-from . import accounts as accounts_mod, assets, fifo, page, persona, rhmodel, trend as trend_mod
+from . import accounts as accounts_mod, assets, fifo, funfacts, page, persona, rhmodel, trend as trend_mod
 from .util import F, UTC, et_day, et_wall_to_utc, iso, r2, r4, read_json, to_utc, write_json
 
 SCHEMA = 1
@@ -916,6 +916,7 @@ def compute_all(rh, hl, lang="zh", candles=None):
     open_pos = {"schema": SCHEMA, "as_of": as_of,
                 "rh": sorted(open_rh, key=lambda p: (p["acct"], p["cls"], str(p["sym"]), str(p.get("expiration")))),
                 "hl_perp": perps, "hl_spot": sorted(spots, key=lambda s: (str(s["coin"]), s["acct"]))}
+    summary["fun"] = funfacts.build(dict(scopes, all=(trades, acts, funding)), profs)
     summary["accounts"] = accounts_mod.build(accts, overall, profs, open_pos)
     for row in summary["accounts"]["rows"]:
         row["trend"] = (trend.get("by_account") or {}).get(row["key"])

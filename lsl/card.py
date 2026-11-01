@@ -8,7 +8,9 @@
 No dollar amounts, ever: the card shows only percentages, ratios, counts, days and asset names.
 Sections (top to bottom): header (brand, scope, date range, period), badge + tagline, return on
 volume with an unlabelled equity-shape sparkline, a 6-stat grid, best/worst asset names, the
-win/loss strip of the last trades; then "trader personality test" (type, roast, trend-discipline
+win/loss strip of the last trades, a "fun facts" grid (lsl/funfacts.py: most traded, long/short,
+most loved / hated asset, streaks, hold times, busiest day / weekday, venue or account split, asset
+mix, liquidations; up to 10, each hidden when the scope has no data for it); then "trader personality test" (type, roast, trend-discipline
 line, five score bars), "trader rank" (S-F ladder + verdict) and "the AI asks" (three rules and
 one question in a red quote box); footer "Trading Journey".
 
@@ -257,7 +259,9 @@ def data(sm, se, period="all", key="all"):
                          "closed": st.get("closed_trades"), "win_rate": st.get("win_rate"),
                          "pf": st.get("profit_factor_ratio"), "liq_trades": liq},
             "persona": _persona_codes(sm, key), "trend": _trend_for(sm, key),
-            "best_asset": best, "worst_asset": worst}
+            "best_asset": best, "worst_asset": worst,
+            "fun": ((sm.get("fun") or {}).get(key) or {}).get(period) or {},
+            "account_labels": {r["key"]: dict(r.get("labels") or {}, _=r.get("label")) for r in rows}}
 
 
 def available(sm, key="all"):
@@ -431,6 +435,101 @@ BODY, SMALL = 30, 25
 _SLOT = {"persona": (CW, BODY), "verdict": (CW, BODY), "rule": (CW - 56, BODY - 2), "question": (CW - 64, BODY + 2)}
 
 
+# ----------------------------------------------------------------- fun facts
+FUN_ORDER = ("most_traded", "long_short", "loved", "hated", "streaks", "time_held", "busiest_day", "weekday",
+             "venues", "top_account", "classes", "liquidated")
+FUN_MAX = 10
+FUN_DROP = ("weekday", "classes", "busiest_day")     # dropped first when more than FUN_MAX are available
+
+
+def _dur(x, T):
+    if x["unit"] == "m" and not x["num"]:
+        return T["units"]["lt1"]
+    return T["units"][x["unit"]].format(n=x["num"])
+
+
+def fun_cells(d, lang):
+    """[(key, emoji, label, value, sub or None)] for the facts this scope/period has; missing ones are
+    simply absent.  Only counts, shares, durations, dates and names."""
+    T, f = L(lang), d.get("fun") or {}
+    Fm = T["fun_fmt"]
+
+    def ntr(n):
+        return Fm["trades_1"] if n == 1 else Fm["trades_n"].format(n=cnt(n))
+
+    cells = {}
+    if "most_traded" in f:
+        x = f["most_traded"]
+        cells["most_traded"] = (Fm["most_traded"].format(ticker=x["ticker"], trades=ntr(x["trades"]),
+                                                         share=pct(x["share"], dp=0)), None)
+    if "long_short" in f:
+        x = f["long_short"]
+        cells["long_short"] = (Fm["long_short"].format(long=pct(x["long_share"], dp=0),
+                                                       short=pct(x["short_share"], dp=0)), None)
+    for k in ("loved", "hated"):
+        if k in f:
+            x = f[k]
+            cells[k] = (Fm["asset_wr"].format(ticker=x["ticker"], wr=pct(x["win_rate"], dp=0),
+                                              trades=ntr(x["trades"])), None)
+    if "streaks" in f:
+        x = f["streaks"]
+        cells["streaks"] = (Fm["streaks"].format(w=x["streak_w"], l=x["streak_l"]), None)
+    if "time_held" in f:
+        x = f["time_held"]
+        cells["time_held"] = (_dur(x["median_hold"], T),
+                          Fm["hold_sub"].format(lo=_dur(x["shortest_hold"], T), hi=_dur(x["longest_hold"], T)))
+    if "busiest_day" in f:
+        x = f["busiest_day"]
+        cells["busiest_day"] = (Fm["busiest_day"].format(date=x["date"], fills=cnt(x["fills"])), None)
+    if "weekday" in f:
+        x = f["weekday"]
+        cells["weekday"] = (Fm["weekday"].format(day=T["weekdays"][x["weekday"]], share=pct(x["share"], dp=0)), None)
+    if "venues" in f:
+        cells["venues"] = (" \u00b7 ".join("%s %s" % (T["venues"][r["venue"]], pct(r["share"], dp=0))
+                                           for r in f["venues"]["rows"]), None)
+    if "top_account" in f:
+        x = f["top_account"]
+        lab = (d.get("account_labels") or {}).get(x["account"]) or {}
+        name = lab.get(lang) or lab.get("_")
+        if name:
+            cells["top_account"] = (name, Fm["top_account_sub"].format(share=pct(x["share"], dp=0),
+                                                                       n=x["accounts"]))
+    if "classes" in f:
+        cells["classes"] = (" \u00b7 ".join("%s %s" % (T["classes"][r["cls"]], pct(r["share"], dp=0))
+                                            for r in f["classes"]["rows"]), None)
+    if "liquidated" in f:
+        n = f["liquidated"]["trades"]
+        cells["liquidated"] = (Fm["liq_0"] if n == 0 else Fm["liq_1"] if n == 1 else
+                               Fm["liq_n"].format(n=cnt(n)), None)
+    keys = [k for k in FUN_ORDER if k in cells]
+    for k in FUN_DROP:
+        if len(keys) > FUN_MAX and k in keys:
+            keys.remove(k)
+    out = []
+    for k in keys[:FUN_MAX]:
+        em, lab = T["fun"][k]
+        v, sub = cells[k]
+        out.append((k, em, lab, v.replace("$", ""), sub.replace("$", "") if sub else None))
+    return out
+
+
+def fit(s, size, width, min_size, mono=False, bold=False):
+    """Largest font size >= min_size that fits; past that, trim with an ellipsis.  Bold text runs
+    ~12% wider than text_w's regular-weight estimate."""
+    k = 1.12 if bold else 1.0
+
+    def w(t, z):
+        return text_w(t, z, mono) * k
+    sz = size
+    while sz > min_size and w(s, sz) > width:
+        sz -= 1
+    if w(s, sz) <= width:
+        return s, sz
+    while s and w(s + "\u2026", sz) > width:
+        s = s[:-1]
+    return s.rstrip() + "\u2026", sz
+
+
 # ----------------------------------------------------------------- svg
 class _Out:
     def __init__(self):
@@ -575,6 +674,51 @@ def svg(d, lang="en", percent_only=False, copy=None):
             o('<rect x="%s" y="%s" width="%s" height="26" rx="3" fill="%s"/>'
               % (_n(M + i * step), _n(y), _n(step - 5), GREEN if ch == "W" else RED))
         y += 26 + 24
+    cells = fun_cells(d, lang)
+    if cells:
+        y += 20
+        divider(y)
+        y += 66
+        header(y, "h_fun")
+        y += 34
+        gap = 20
+        cw2 = (CW - gap) / 2.0
+        rows = [cells[i:i + 2] for i in range(0, len(cells), 2)]
+        for row in rows:
+            full = len(row) == 1
+            cwid = CW if full else cw2
+            laid = []
+            for (k, em, lab, val, sub) in row:
+                cont = None                       # a " · " list too long for one line wraps onto a 2nd line
+                if not sub and " \u00b7 " in val and text_w(val, 26) * 1.12 > cwid - 44:
+                    parts = val.split(" \u00b7 ")
+                    n = len(parts) - 1
+                    while n > 1 and text_w(" \u00b7 ".join(parts[:n]), 26) * 1.12 > cwid - 44:
+                        n -= 1
+                    val, cont = " \u00b7 ".join(parts[:n]), " \u00b7 ".join(parts[n:])
+                laid.append((k, em, lab, val, sub, cont))
+            rh = 150 if any(c[4] or c[5] for c in laid) else 116
+            for j, (k, em, lab, val, sub, cont) in enumerate(laid):
+                cx = M + j * (cw2 + gap)
+                o('<rect x="%s" y="%s" width="%s" height="%d" rx="16" fill="%s" stroke="%s" stroke-width="2"/>'
+                  % (_n(cx), _n(y), _n(cwid), rh, BOX, LINE))
+                o('<text x="%s" y="%s" font-size="26" font-family="%s">%s</text>' % (_n(cx + 22), _n(y + 42),
+                                                                                    esc(EMOJI), em))
+                lt, ls = fit(lab, 22, cwid - 86, 18)
+                o.text(cx + 64, y + 40, lt, ls, GRAY)
+                vt, vs = fit(val, 30, cwid - 44, 22, bold=True)
+                if cont:
+                    ct, cs = fit(cont, 30, cwid - 44, 22, bold=True)
+                    vs = cs = min(vs, cs)
+                    o.text(cx + 22, y + 84, vt, vs, WHITE, 800)
+                    o.text(cx + 22, y + 124, ct, cs, WHITE, 800)
+                else:
+                    o.text(cx + 22, y + 88, vt, vs, WHITE, 800)
+                if sub:
+                    st_, ss = fit(sub, 21, cwid - 44, 17)
+                    o.text(cx + 22, y + 126, st_, ss, DIM)
+            y += rh + 16
+        y += 14
     y += 20
     divider(y)
     y += 66

@@ -20,7 +20,7 @@ combination (at least one):
 ## Use it from Grok Bot
 
 Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo at tag
-`v0.2.9`, run the self-test, ask which language to use, collect sources (Hyperliquid
+`v0.2.10`, run the self-test, ask which language to use, collect sources (Hyperliquid
 addresses; Robinhood via the official connector, whose namespace it discovers),
 sync, fetch daily candles for the SMA trend tags (`lsl candles fetch`), compute one combined report (with a per-account breakdown when there are
 several accounts; single-account reports on request), render the share card
@@ -122,6 +122,12 @@ numbers, yellow emoji section headers and ◆ dividers:
 - badge + tagline, return on volume with a sparkline, a stats box (win rate,
   profit factor, closed trades, assets, active days, drawdown of peak; Sharpe
   and Sortino on shorter periods), best / worst asset, the last-50 W/L strip;
+- 🎲 fun facts (`lsl/funfacts.py`, up to 10 cells over the card's window): most
+  traded ticker, long vs short split, most loved / arch-nemesis asset by win
+  rate, longest win / loss streaks, median / shortest / longest hold, busiest
+  day, favorite weekday, venue split or go-to account, stocks / crypto / options
+  mix, liquidations. Each is hidden when the scope has no data for it (never
+  shown as 0);
 - 🧬 trader type and modifiers, a roast built from counts (fills, days, fills per
   day, busiest day), the trend-discipline line (% of entries against the SMA
   trend) and five 0-10 score bars;

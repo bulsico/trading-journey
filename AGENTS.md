@@ -33,6 +33,7 @@ Layout:
 | `lsl/profile.py` | trader profile (formulas and thresholds documented in the docstring and README) |
 | `lsl/accounts.py` | per-account breakdown of a combined report: rows, cent-exact reconciliation, cross-account insights (rules in the docstring) |
 | `lsl/card.py` | share card SVG, badges, optional PNG, per-account cards |
+| `lsl/funfacts.py` | share-card fun facts per scope and period (counts, shares, durations, dates, names; missing facts omitted) |
 | `lsl/candles.py` | daily candle cache (`DATA/raw/candles/`): HL candleSnapshot, Yahoo keyless stocks, optional RH `get_equity_historicals` windows; closed candles only, incremental = full (tested) |
 | `lsl/trend.py` | SMA trend tags per entry and their aggregates (rules in the docstring); feeds persona trend awareness |
 | `lsl/report.py` | TL;DR lines |

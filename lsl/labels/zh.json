@@ -468,6 +468,99 @@
       "SCATTER": "这个币我真的懂吗，还是只是它今天在涨？",
       "WORST": "我是不是又在同一个坑里跳？",
       "DEFAULT": "这笔交易，我能用一句话说清楚为什么开吗？"
+    },
+    "h_fun": [
+      "🎲",
+      "趣味冷知识"
+    ],
+    "fun": {
+      "most_traded": [
+        "🔁",
+        "最常交易"
+      ],
+      "long_short": [
+        "⚖️",
+        "多空比例"
+      ],
+      "loved": [
+        "💚",
+        "真爱资产"
+      ],
+      "hated": [
+        "💔",
+        "冤家资产"
+      ],
+      "streaks": [
+        "🔥",
+        "最长连胜 / 连败"
+      ],
+      "time_held": [
+        "⏱️",
+        "持仓时间中位数"
+      ],
+      "busiest_day": [
+        "📅",
+        "最忙的一天"
+      ],
+      "weekday": [
+        "🗓️",
+        "最爱星期几"
+      ],
+      "venues": [
+        "🏦",
+        "平台分布"
+      ],
+      "top_account": [
+        "🏦",
+        "主力账户"
+      ],
+      "classes": [
+        "🧺",
+        "资产组合"
+      ],
+      "liquidated": [
+        "💥",
+        "爆仓次数"
+      ]
+    },
+    "fun_fmt": {
+      "most_traded": "{ticker} · {trades}（占 {share}）",
+      "trades_1": "1 笔",
+      "trades_n": "{n} 笔",
+      "long_short": "做多 {long} · 做空 {short}",
+      "asset_wr": "{ticker} · 胜率 {wr}（{trades}）",
+      "streaks": "连胜 {w} 笔 · 连败 {l} 笔",
+      "hold_sub": "最短 {lo} · 最长 {hi}",
+      "busiest_day": "{date} · {fills} 笔成交",
+      "weekday": "{day} · 占成交 {share}",
+      "top_account_sub": "占交易 {share} · 共 {n} 个账户",
+      "liq_n": "{n} 笔被强平",
+      "liq_1": "1 笔被强平",
+      "liq_0": "0 次，干干净净！"
+    },
+    "units": {
+      "m": "{n} 分钟",
+      "h": "{n} 小时",
+      "d": "{n} 天",
+      "lt1": "不到 1 分钟"
+    },
+    "weekdays": [
+      "周一",
+      "周二",
+      "周三",
+      "周四",
+      "周五",
+      "周六",
+      "周日"
+    ],
+    "classes": {
+      "stocks": "股票",
+      "crypto": "加密",
+      "options": "期权"
+    },
+    "venues": {
+      "hl": "Hyperliquid",
+      "rh": "Robinhood"
     }
   },
   "tldr": {

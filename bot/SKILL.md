@@ -23,8 +23,8 @@ installs one when missing).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.9 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.9 2>/dev/null; git checkout -q v0.2.9
+[ -d $REPO/.git ] || git clone --branch v0.2.10 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.10 2>/dev/null; git checkout -q v0.2.10
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```
@@ -212,12 +212,24 @@ shows a dollar amount: only percentages, ratios, counts, days and asset names
 bottom: brand, scope and window; badge + tagline; return on volume with a
 sparkline; win rate / profit factor / closed trades / assets / active days /
 drawdown of peak (Sharpe and Sortino on 90d/30d/7d); best and worst asset; the
-W/L strip; 🧬 trader type, a roast built from counts and the trend-discipline
+W/L strip; 🎲 fun facts (below); 🧬 trader type, a roast built from counts and the trend-discipline
 line; five score bars (x/10); 📊 the S-F grade ladder with "you are here" and a
 verdict; 🤖 three rules and one question; the "Trading Journey · 交易旅程"
 footer. Persona, scores and grade are all-time for the card's scope (each
 account's own on a per-account card); the stats, badge, strip and sparkline
 follow `--period`.
+
+The 🎲 fun-facts grid (`summary.json` → `fun[scope][period]`, from
+`lsl/funfacts.py`) shows up to 10 two-column cells over the card's window: most
+traded ticker (trades and share), long vs short split, most loved and
+arch-nemesis asset (win rate, needs two assets with 3+ trades), longest win and
+loss streaks, median hold (shortest and longest below it), busiest day, favorite
+weekday, venue split (Robinhood vs Hyperliquid) or go-to account (masked label),
+asset mix (stocks / crypto / options) and liquidations (perp scopes; 0 shows as a
+clean sheet). A fact with no data for the scope is left out, never shown as 0.
+These are counts, shares, durations, dates and names only, so you may quote them
+in `copy.json`. Leverage and win/loss size as % of notional are not shown: the
+data has no reliable leverage or entry notional.
 
 ### Card copy (`copy.json`)
 
