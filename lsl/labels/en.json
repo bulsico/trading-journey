@@ -674,5 +674,27 @@
     "no_candles": "Trend tags need daily candles: run `lsl candles fetch` first.",
     "status_item": "{label}: {n}",
     "list_sep": ", "
+  },
+  "html": {
+    "png_heading": "PNG files",
+    "png_hint": "Open these full-resolution PNGs (2160x3840) to share. The cards are also embedded above.",
+    "no_png": "No PNG yet. Install an SVG rasterizer and rerun `lsl card --png`, then `lsl html`.",
+    "no_cards": "No share cards in this folder yet. Run `lsl card`, then `lsl html`.",
+    "dq_fail": "A required data-quality check failed. Numbers may be incomplete.",
+    "dq_ok": "Required data-quality checks passed.",
+    "dq_optional": "Optional checks failed: {n}.",
+    "footer": "trading-journey {version}. Figures are copied from the script output. Not financial advice.",
+    "per_account": "Per-account cards",
+    "commentary": "Notes on the cards",
+    "rules": "Rules",
+    "question": "Question"
+  },
+  "prefs": {
+    "question": "Report language?",
+    "opt_en": "English",
+    "opt_zh": "中文 (Chinese)",
+    "opt_system": "System language",
+    "unsupported": "System language is {locale}, which isn't supported yet, so I'm using English.",
+    "no_locale": "No system locale is set. Reply with the language you are writing in: en or zh."
   }
 }

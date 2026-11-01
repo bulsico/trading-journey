@@ -1,13 +1,15 @@
 # Trading Journey
 
-A Grok Bot skill plus a small deterministic engine that turns your trading
-history into a private "trading journey" Page, a shareable P&L card and a
-candid chat review (交易来时路), in English or Chinese. Sources, in any
-combination (at least one):
+A deterministic engine that turns a trading history into a private HTML
+report, three share-card PNGs and a candid review (交易来时路), in English
+or Chinese. Run it from a shell, or from Grok Bot, Claude Code, or Codex.
+The agent only interprets script output. Sources, in any combination (at
+least one):
 
-- **Robinhood** (optional), read through the official Robinhood connector
-  (read-only `get_*` tools only), every account it exposes
-- **Hyperliquid**, zero or more addresses, read from the public API
+- **Hyperliquid**, zero or more addresses, read from the public API. Works
+  from any host, with no connector.
+- **Robinhood** (optional), read-only `get_*` tools through a Robinhood MCP
+  server the host already logged into. No password is stored here.
 
 ## The deterministic rule
 
@@ -17,30 +19,59 @@ combination (at least one):
 - The bot **only interprets**: it copies figures verbatim from the output files
   and writes the commentary. It never adds, averages, converts or re-rounds.
 
-## Use it from Grok Bot
+## Use it
 
-Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo
-(`https://github.com/bulsico/trading-journey`) at tag `v0.2.15`, run the self-test, ask which language to use, collect sources (Hyperliquid
-addresses; Robinhood via the official connector, whose namespace it discovers),
-sync, fetch daily candles for the SMA trend tags (`lsl candles fetch`), compute one combined report (with a per-account breakdown when there are
-several accounts; single-account reports on request), render the share cards
-(per-account cards on request), build the
-Page from `bot/page-template.tsx`, and write the review
-(`bot/report-template.en.md` or `bot/report-template.zh.md`; background in
-`context/market-context.md`).
+The shared procedure is [`docs/workflow.md`](docs/workflow.md): a shell, files,
+and a plain-text language question. Host files only add optional extras.
+Release tag: `v0.3.0`.
 
-Before the first report and Page, the bot asks which language to use with a
-question widget: English, 中文 (Chinese), or System language. System language is
-resolved from the user's locale, or from the language they write in, and maps to
-`zh` or `en`. Other languages fall back to English, and the bot says so. The
-choice is saved to memory and reused on later runs without asking again. A saved
-"System language" is resolved again on every run. Ask the bot at any time to
-switch.
+### From a shell
+
+```bash
+git clone --branch v0.3.0 --depth 1 https://github.com/bulsico/trading-journey
+cd trading-journey && python3 bin/lsl selftest          # must end OK
+python3 bin/lsl prefs set --lang en                     # or zh, or system
+python3 bin/lsl hl add 0xADDRESS && python3 bin/lsl hl fetch
+python3 bin/lsl candles fetch
+python3 bin/lsl compute --lang en && python3 bin/lsl card --lang en --png
+python3 bin/lsl html --lang en                          # prints the HTML path and PNG paths
+```
+
+The data directory defaults to `~/.trading-journey` (see below). Open the HTML
+file and the PNGs it lists. Hyperliquid needs no key. Robinhood needs an MCP
+host that can run the plan/ingest loop in the workflow; a shell alone reviews
+Hyperliquid.
+
+### From Grok Bot
+
+Point the wrapper skill at `bot/SKILL.md` in a checkout of tag `v0.3.0`.
+That adapter clones the repo to `~/trading-journey`, keeps data in
+`~/trading-journey-data`, asks the language with a question widget (saved in
+the data dir, not memory), uses the official Robinhood connector, attaches
+the three PNGs in chat, and also builds the canvas Page from
+`bot/page-template.tsx`. The HTML report is still written.
+
+### From Claude Code
+
+Open this repo. `CLAUDE.md` points at the workflow; `/trading-journey` loads
+`.claude/skills/trading-journey/SKILL.md`. Language is a plain-text question
+saved with `lsl prefs`. The report is the HTML file. Robinhood works after
+`claude mcp add robinhood-trading --transport http https://agent.robinhood.com/mcp/trading`
+and `/mcp`. Otherwise the review is Hyperliquid only.
+
+### From Codex
+
+Open this repo. `AGENTS.md` and `.agents/skills/trading-journey/SKILL.md`
+point at the same workflow. Robinhood works after
+`codex mcp add robinhood-trading --url https://agent.robinhood.com/mcp/trading`
+and `/mcp`. Otherwise the review is Hyperliquid only.
 
 ## CLI
 
 ```bash
 python3 bin/lsl selftest                                   # synthetic-data test suite (must end OK)
+python3 bin/lsl data-dir                                   # resolved data dir and version
+python3 bin/lsl prefs [show|set --lang en|zh|system]       # report language, stored in DATA/prefs.json
 
 python3 bin/lsl hl add    --data-dir DATA 0x... [--label NAME]  # validate (0x + 40 hex), dedupe
 python3 bin/lsl hl list   --data-dir DATA                  # tracked addresses (short form)
@@ -56,6 +87,7 @@ python3 bin/lsl candles status --data-dir DATA             # which candle series
 
 python3 bin/lsl compute --data-dir DATA [--scope SCOPE] [--lang en|zh]   # -> DATA/out/<scope-slug>/
 python3 bin/lsl page    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--compact] [--copy FILE]   # rebuild page.json only
+python3 bin/lsl html    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--copy FILE]   # self-contained report.html
 python3 bin/lsl card    --data-dir DATA [--scope SCOPE] [--lang en|zh] [--period all|90d|30d|7d] [--copy FILE] [--png] [--per-account]
 python3 bin/lsl purge   --data-dir DATA [--source rh|hl|all] --yes
 python3 bin/lsl hl tokens --unit                           # public spotMeta lookup for the whitelist
@@ -64,7 +96,9 @@ python3 bin/lsl hl tokens --unit                           # public spotMeta loo
 `compute` writes `summary.json`, `series.json`, `open_positions.json`,
 `data_quality.json` and `page.json` to `DATA/out/<scope-slug>/` (`--out DIR`
 overrides). `card` writes the three story cards `share-card-{1-stats,2-facts,3-roast}.svg`
-(and with `--png` a 2x `.png` each) next to them. With no source at all, `compute` returns an error asking for one.
+(and with `--png` a 2x `.png` each) next to them. `html` writes `report.html`
+beside them (cards inlined, PNG paths listed) and does not modify `page.json`.
+With no source at all, `compute` returns an error asking for one.
 `page --compact` rewrites `page.json` small enough to paste into one Page write:
 same numbers, shorter lists (share cards for the default period only, top asset groups, 24-point
 sparklines, first 12 Robinhood positions); see `lsl/page.py` `compact()`.
@@ -160,11 +194,11 @@ rejected file is an error listing the problems; nothing is drawn.
 `rsvg-convert`, `cairosvg` or `inkscape` it finds; without one it returns an
 install hint and the SVGs are still written. The Page shows the three cards side
 by side as images with a period toggle, but has no download buttons: it
-runs in a sandboxed frame with no download, blob or clipboard support. The chat
-attachments are the download path; the bot always attaches the combined set
-after the report (only the three PNGs in order, 1/3, 2/3, 3/3, as chat images;
-they are full resolution and can be downloaded from the chat preview;
-installing a rasterizer first if needed) and any other set on request.
+runs in a sandboxed frame with no download, blob or clipboard support. The HTML
+report (`lsl html`) embeds the same cards and lists the PNG paths; that file is
+the local page on every host. Grok Bot also attaches the three PNGs in chat
+(1/3, 2/3, 3/3) and previews them on the canvas. There is no generated PDF;
+print the HTML from a browser. A deterministic PDF would need bundled CJK fonts.
 
 With several accounts the combined card adds "N accounts" to its scope line.
 `--per-account` (scope `all`) also writes `cards/<account-slug>-{1-stats,2-facts,3-roast}.svg`
@@ -182,10 +216,11 @@ Diamond Hands (swing or position style) or Grinder.
 
 ### Robinhood loop protocol
 
-MCP tools can only be called by the bot, so the script plans and the bot executes:
+The script plans the calls. Whoever can run them (an MCP host, or a person
+saving the raw JSON) executes them:
 
 1. `rh plan --namespace NS` prints `{"status": "calls"|"pending"|"done", "calls": [...]}`.
-2. The bot calls each `call.tool` in `call.namespace` with `call.args` verbatim
+2. The caller invokes `call.tool` in `call.namespace` with `call.args` verbatim
    and saves the raw result to `call.save_as`.
 3. `rh ingest` parses what was saved. Repeat until `status` is `done`.
 
@@ -195,15 +230,19 @@ years, realized-P&L reconciliation and per-symbol history, and asserts that only
 
 ## Data dir, incremental sync, purge
 
-`--data-dir` (alias `--run`) defaults to `$LSL_DATA_DIR` or `~/trading-journey-data`:
+`--data-dir` (alias `--run`) resolves, first match, to `$LSL_DATA_DIR`, then
+`~/trading-journey-data` if that directory already exists, otherwise
+`~/.trading-journey`. Grok Bot always passes `~/trading-journey-data`.
 
+- `prefs.json`: report language (`en`, `zh`, or `system`), at the data-dir root
 - `state/`: sync cursors and parsed records
 - `raw/`: saved connector results (`raw/done/` once ingested)
-- `out/<scope-slug>/`: computed files per scope
+- `out/<scope-slug>/`: computed files per scope, including `report.html`
 
 Keep it between runs. Later syncs fetch only what is new, and an incremental
 sync computes byte-identical output to a fresh full sync (covered by tests).
-`lsl purge` deletes the stored account data for one source or all.
+`lsl purge` deletes the stored account data for one source or all. It leaves
+`prefs.json` in place. Deleting the data directory forgets the language too.
 
 ## How numbers are defined
 
@@ -265,7 +304,8 @@ is hidden and everything else still runs.
 `page.json` → `tldr` holds 3 to 6 script-written lines (headline net, best and
 worst asset or trade, win rate, verdict and badge; with several accounts the
 account that carried the result and the one that bled; a trend line when trend
-discipline is notable) that open the Page and the chat report.
+discipline is notable) that open the HTML report, the canvas Page, and the
+chat review.
 
 ## Known gaps
 
@@ -276,6 +316,9 @@ discipline is notable) that open the Page and the chat report.
 - "%" figures are return on traded volume, not return on capital (deposits
   are not modelled).
 - Addresses are compared case-insensitively; EIP-55 checksums are not verified.
+- No PDF is written. Print `report.html` from a browser.
+- Robinhood still needs a host that can call the read-only MCP tools. The
+  engine does not log in and does not store credentials.
 
 ## Privacy
 

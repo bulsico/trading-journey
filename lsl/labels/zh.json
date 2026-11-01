@@ -674,5 +674,27 @@
     "no_candles": "趋势标签需要日K线：先运行 `lsl candles fetch`。",
     "status_item": "{label} {n} 笔",
     "list_sep": "、"
+  },
+  "html": {
+    "png_heading": "PNG 文件",
+    "png_hint": "分享时打开这些全分辨率 PNG（2160x3840）。卡片也嵌在上面。",
+    "no_png": "还没有 PNG。安装 SVG 栅格化工具后重新运行 `lsl card --png`，再运行 `lsl html`。",
+    "no_cards": "这个目录里还没有分享卡片。先运行 `lsl card`，再运行 `lsl html`。",
+    "dq_fail": "有一项必过的数据质量检查没通过。数字可能不完整。",
+    "dq_ok": "必过的数据质量检查已通过。",
+    "dq_optional": "未通过的可选项：{n}。",
+    "footer": "trading-journey {version}。数字均来自脚本输出，不构成投资建议。",
+    "per_account": "分账户卡片",
+    "commentary": "卡片上的说明",
+    "rules": "三条规矩",
+    "question": "一个问题"
+  },
+  "prefs": {
+    "question": "报告语言?",
+    "opt_en": "English",
+    "opt_zh": "中文",
+    "opt_system": "系统语言",
+    "unsupported": "系统语言是 {locale}，暂不支持，所以改用英文。",
+    "no_locale": "没有检测到系统语言。请用你正在使用的语言回复：en 或 zh。"
   }
 }
