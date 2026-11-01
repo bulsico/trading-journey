@@ -21,7 +21,7 @@ const CARD = D.card as any;
 const VARIANTS = CARD.variants as Record<string, string[]>;
 // Each period's card set is three 9:16 story cards (stats, fun facts, roast; the facts card is left out
 // when there are none), each shown as an <Image> with an SVG data URI. The Page frame is sandboxed and the kit has no
-// download/blob/clipboard API, so there are no download buttons: the bot attaches the PNGs and share-cards.zip in chat.
+// download/blob/clipboard API, so there are no download buttons: the bot attaches the PNGs in chat.
 const svgUrl = (svg: string) => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
 
 const ACC = D.accounts as any;

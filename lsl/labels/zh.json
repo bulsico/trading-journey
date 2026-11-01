@@ -229,7 +229,7 @@
     "hl_spot": "Hyperliquid 现货",
     "rh_positions": "Robinhood",
     "card_note": "卡片跟随报告范围，只显示百分比和笔数，不显示金额。",
-    "card_save": "三张竖版卡片的 PNG 已附在聊天里，另附 share-cards.zip（全分辨率原图）。浏览器允许的话，也可以右键或长按卡片选择“存储图像”。",
+    "card_save": "三张竖版卡片的全分辨率 PNG 已附在聊天里，可直接在聊天预览中下载。",
     "summary_fmt": "{scope} · {period}（{days} 天）· 数据截至 {as_of}。所有数字都来自 trading-journey 的确定性输出。",
     "since_fmt": "{label} 以来",
     "best_months": "最好的月份",

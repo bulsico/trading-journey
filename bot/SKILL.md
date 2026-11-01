@@ -23,8 +23,8 @@ installs one when missing).
 
 ```bash
 REPO=~/trading-journey
-[ -d $REPO/.git ] || git clone --branch v0.2.13 --depth 1 https://github.com/bulsico/trading-journey $REPO
-cd $REPO && git fetch -q --depth 1 origin tag v0.2.13 2>/dev/null; git checkout -q v0.2.13
+[ -d $REPO/.git ] || git clone --branch v0.2.14 --depth 1 https://github.com/bulsico/trading-journey $REPO
+cd $REPO && git fetch -q --depth 1 origin tag v0.2.14 2>/dev/null; git checkout -q v0.2.14
 python3 bin/lsl selftest                     # must end with "OK" (exit 0) before you continue
 DATA=~/trading-journey-data                  # persistent; reuse the same dir every run
 ```
@@ -273,11 +273,9 @@ python3 bin/lsl card --data-dir $DATA --scope $SCOPE --lang $LANG_ [--period all
 Writes `$OUT/share-card-1-stats.svg`, `$OUT/share-card-2-facts.svg` and
 `$OUT/share-card-3-roast.svg` (byte-identical for the same input) and, when a
 rasterizer is installed (`rsvg-convert`, `cairosvg` or `inkscape`), a 2x `.png`
-and a one-PNG `.zip` beside each, plus `$OUT/share-cards.zip`: the three 2x
-PNGs in order, uncompressed (stored), byte-stable. The result's `cards_set`
-lists the cards in order (`id`, `svg`, `png`, `zip`) and `zip` is
-`share-cards.zip`. Old single-card files (`share-card.svg/png/zip`) are
-removed. `--percent-only` is still accepted and does nothing (the cards never
+(2160x3840) beside each. The result's `cards_set` lists the cards in order
+(`id`, `svg`, `png`). Stale files from older versions (`share-card.svg/png` and
+any leftover `.zip`) are removed. `--percent-only` is still accepted and does nothing (the cards never
 show dollars).
 
 The chat attachment is the only real download path. The Page runs in a sandboxed
@@ -286,11 +284,10 @@ images with no download buttons and its note says the PNGs are in the chat. So:
 
 - Always attach the combined set to the chat right after the report, without
   being asked: the three PNGs in order (`share-card-1-stats.png`,
-  `share-card-2-facts.png`, `share-card-3-roast.png`, i.e. `cards_set[*].png`),
-  then `share-cards.zip` (the result's `"zip"`). Chat clients recompress inline
-  images, so the zip is the real download; say once that the zip holds the
-  sharp originals. Do the same (PNGs in order, then that set's
-  `share-cards.zip`) for every other card set you attach.
+  `share-card-2-facts.png`, `share-card-3-roast.png`, i.e. `cards_set[*].png`, 1/3, 2/3, 3/3) as chat
+  images, and nothing else. They are full resolution and the user can download
+  them straight from the chat preview. Do the same (only its three PNGs in
+  order) for every other card set you attach.
 - If the result says `"png": null` (no rasterizer), install one first, then
   rerun the same `lsl card ... --png` command:
   ```bash
@@ -306,7 +303,7 @@ If a period has too little data the result is an error listing
 `available_periods`; pick one of those. The card never shows an account number.
 
 Any other card set (another period or one account) is attached the same way
-(three PNGs in order, then its zip) when the user asks for it, made with `lsl card ... --png` (`--period`, `--per-account`).
+(only its three PNGs in order) when the user asks for it, made with `lsl card ... --png` (`--period`, `--per-account`).
 The Page's period toggle only previews cards; it cannot save them. Each run
 of `lsl card` overwrites the files in `$OUT`, so attach one set before
 rendering the next.
@@ -320,13 +317,12 @@ python3 bin/lsl card --data-dir $DATA --scope all --lang $LANG_ --per-account [-
 ```
 
 This also writes `$OUT/cards/<account-slug>-1-stats.svg`, `-2-facts.svg`,
-`-3-roast.svg` (each with a `.png` and `.zip`) and
-`$OUT/cards/<account-slug>-share-cards.zip` for every account, in By-account
+`-3-roast.svg` (each with a `.png`) for every account, in By-account
 order (per-account cards always use the templates, since your copy describes
 the combined report); the result's `cards[]` lists each account (`label`,
-`cards_set`, `zip`), or `skipped` with that account's `available_periods` when
+`cards_set`), or `skipped` with that account's `available_periods` when
 it has too little data for the period. Attach only the set(s) the user asked
-for: its three PNGs in order, then its `<account-slug>-share-cards.zip`. The
+for: only its three PNGs in order. The
 Page previews the same cards behind its account picker (view only).
 
 ## 6. Build the Page
@@ -368,7 +364,7 @@ with / counter / neutral table, regime and direction tables, and the split by
 venue and account.
 It opens with the TL;DR, the share card (account picker when there are several
 accounts, period toggle, the three story cards side by side as images plus a
-line saying the PNGs and share-cards.zip are attached in the chat; no download buttons), and the trader
+line saying the cards are attached in the chat; no download buttons), and the trader
 profile ($/% toggle, venue selector, 7D/30D/90D/All table). The Page is
 private to the user, so real tickers and amounts are fine there.
 
@@ -377,8 +373,8 @@ share cards are the default period only (other-period and per-account cards stay
 available via `lsl card`; account rows say to ask you),
 asset groups are the top 5 best / 5 worst / 8 multi-venue, account sparklines
 use 24 points, and Robinhood positions show the first 12 rows with a "N more"
-line. The Page cannot save files; every card download is a PNG set (plus its
-zip) you attach in chat
+line. The Page cannot save files; every card download is a set of three PNGs
+you attach in chat
 (step 5).
 
 ## 7. Chat report
@@ -393,8 +389,8 @@ follows when there is more than one account. Then follow the template for the la
 - English: `bot/report-template.en.md`
 
 Read `context/market-context.md` as background first. After the report, always
-attach the combined share cards: the three PNGs in order, then
-`share-cards.zip` (step 5; SVG only as a last resort). Keep it
+attach the combined share cards: only the three PNGs in order
+(step 5; SVG only as a last resort). Keep it
 under ~1500 words (中文 1500 字).
 
 Privacy: the report, card and Page are for the user only. Never post them, and

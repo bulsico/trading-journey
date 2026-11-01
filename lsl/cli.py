@@ -28,8 +28,8 @@ It is kept between runs so later runs sync incrementally; `--run` is an alias.
                                                      rebuild page.json
   lsl card       [--out DIR | --data-dir DATA --scope SCOPE] [--period all|90d|30d|7d]
                  [--lang en|zh] [--png] [--per-account] [--copy FILE]
-                                                     three 1080x1920 story cards (SVG, +PNG and
-                                                     share-cards.zip), no dollar amounts;
+                                                     three 1080x1920 story cards (SVG, +2x PNG),
+                                                     no dollar amounts;
                                                      --per-account adds cards/<account-slug>-*.svg per
                                                      account; --copy uses the bot's checked copy.json
                                                      (--percent-only: accepted, no-op)
@@ -141,7 +141,7 @@ def main(argv=None):
     cd.add_argument("--period", default="all", choices=["all", "90d", "30d", "7d"])
     cd.add_argument("--percent-only", action="store_true", help="no-op (the card never shows dollar amounts)")
     cd.add_argument("--copy", help="bot-written copy.json (persona/verdict/rules/question); validated, see lsl/card.py")
-    cd.add_argument("--png", action="store_true", help="also rasterize to 2x PNGs and share-cards.zip if a converter is installed")
+    cd.add_argument("--png", action="store_true", help="also rasterize to 2x PNGs if a converter is installed")
     cd.add_argument("--per-account", action="store_true",
                     help="also one card set per account (several accounts) into <out>/cards/<account-slug>-*.svg")
     so = sub.add_parser("sources")

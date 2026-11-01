@@ -32,7 +32,7 @@ Layout:
 | `lsl/scope.py` | `--scope` parsing, labels, out-dir slugs |
 | `lsl/profile.py` | trader profile (formulas and thresholds documented in the docstring and README) |
 | `lsl/accounts.py` | per-account breakdown of a combined report: rows, cent-exact reconciliation, cross-account insights (rules in the docstring) |
-| `lsl/card.py` | three 1080x1920 story cards (stats, fun facts, roast) as SVG, badges, layout bounds check, optional 2x PNG, stored zips, per-account cards |
+| `lsl/card.py` | three 1080x1920 story cards (stats, fun facts, roast) as SVG, badges, layout bounds check, optional 2x PNG, per-account cards |
 | `lsl/funfacts.py` | share-card fun facts per scope and period (counts, shares, durations, dates, names; missing facts omitted) |
 | `lsl/candles.py` | daily candle cache (`DATA/raw/candles/`): HL candleSnapshot, Yahoo keyless stocks, optional RH `get_equity_historicals` windows; closed candles only, incremental = full (tested) |
 | `lsl/trend.py` | SMA trend tags per entry and their aggregates (rules in the docstring); feeds persona trend awareness |
@@ -40,4 +40,4 @@ Layout:
 | `lsl/fifo.py`, `lsl/compute.py`, `lsl/persona.py` | P&L, stats, persona |
 | `lsl/assets.py`, `lsl/data/` | cross-venue grouping, HL spot whitelist |
 | `lsl/page.py`, `lsl/labels/` | page.json and en/zh labels |
-| `tests/` | synthetic fixtures; `test_sources.py` covers source combinations, scopes, card, profile; `test_accounts.py` the By-account breakdown and per-account cards; `test_story_cards.py` story-card bounds (long Chinese/English copy), fact dropping, zips; `test_trend.py` SMA math, tagging, candle cache, determinism; `test_page_template.py` keeps download code out of the sandboxed Page and checks template label keys |
+| `tests/` | synthetic fixtures; `test_sources.py` covers source combinations, scopes, card, profile; `test_accounts.py` the By-account breakdown and per-account cards; `test_story_cards.py` story-card bounds (long Chinese/English copy), fact dropping, stale-file cleanup; `test_trend.py` SMA math, tagging, candle cache, determinism; `test_page_template.py` keeps download code out of the sandboxed Page and checks template label keys |

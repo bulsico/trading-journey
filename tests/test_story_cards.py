@@ -1,12 +1,11 @@
 """v0.2.13 story cards: three 1080x1920 cards per scope/period (stats, fun facts, roast), every element
-inside the frame and above the footer, no overlapping text, deterministic bytes, stable zips.
+inside the frame and above the footer, no overlapping text, deterministic bytes.
 All data and copy are synthetic."""
 import json
 import os
 import re
 import shutil
 import tempfile
-import zipfile
 
 from lsl import card
 from tests.test_sources import Base, add_hl, add_rh
@@ -130,11 +129,11 @@ class StoryCards(Base):
         finally:
             card.fun_cells = orig
 
-    def test_run_writes_set_and_zips(self):
+    def test_run_writes_set_and_removes_zips(self):
         res, sm, se, pg = self.load("zh")
         out = res["out"]
-        for ext in (".svg", ".png", ".zip"):   # a stale pre-v0.2.13 single card is removed
-            with open(os.path.join(out, "share-card" + ext), "w") as f:
+        for n in ("share-card.svg", "share-card.png", "share-card.zip", "share-cards.zip", "share-card-1-stats.zip"):
+            with open(os.path.join(out, n), "w") as f:   # stale files from older versions are removed
                 f.write("old")
         r = card.run(out, lang="zh", png=bool(card.rasterizer()))
         self.assertEqual(r["status"], "done", r)
@@ -144,43 +143,13 @@ class StoryCards(Base):
             self.assertFalse(os.path.exists(os.path.join(out, "share-card" + ext)), ext)
         for c in r["cards_set"]:
             self.assertTrue(os.path.exists(c["svg"]))
+        self.assertEqual([f for f in os.listdir(out) if f.endswith(".zip")], [])
         if not card.rasterizer():
-            self.skipTest("no rasterizer: PNG / zip path not exercised")
-        self.assertEqual(os.path.basename(r["zip"]), "share-cards.zip")
-        with zipfile.ZipFile(r["zip"]) as z:
-            self.assertEqual(z.namelist(), [os.path.basename(c["png"]) for c in r["cards_set"]])
-            for zi in z.infolist():
-                self.assertEqual((zi.compress_type, zi.date_time), (zipfile.ZIP_STORED, card.ZIP_TIME))
+            self.skipTest("no rasterizer: PNG path not exercised")
         for c in r["cards_set"]:
-            with zipfile.ZipFile(c["zip"]) as z:
-                self.assertEqual(z.namelist(), [os.path.basename(c["png"])])
-        with open(r["zip"], "rb") as f:
-            a = f.read()
-        card.run(out, lang="zh", png=True)
-        with open(r["zip"], "rb") as f:
-            self.assertEqual(f.read(), a)  # byte-stable
-
-    def test_zip_files_byte_stable(self):
-        tmp = tempfile.mkdtemp()
-        try:
-            ps = []
-            for i in range(3):
-                p = os.path.join(tmp, "c%d.png" % i)
-                with open(p, "wb") as f:
-                    f.write(bytes([i]) * 100)
-                ps.append(p)
-            z1 = card._zip_files(os.path.join(tmp, "a.zip"), ps)
-            with open(z1, "rb") as f:
-                a = f.read()
-            for p in ps:
-                os.utime(p, (0, 0))
-            card._zip_files(z1, ps)
-            with open(z1, "rb") as f:
-                self.assertEqual(f.read(), a)
-            with zipfile.ZipFile(z1) as z:
-                self.assertEqual(z.namelist(), ["c0.png", "c1.png", "c2.png"])
-        finally:
-            shutil.rmtree(tmp)
+            self.assertNotIn("zip", c)
+            self.assertTrue(os.path.exists(c["png"]))
+        self.assertNotIn("zip", r)
 
     def test_page_block_sets(self):
         res, sm, se, pg = self.load()

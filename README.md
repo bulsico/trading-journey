@@ -20,7 +20,7 @@ combination (at least one):
 ## Use it from Grok Bot
 
 Install `bot/SKILL.md` as a skill. It tells the bot to clone this repo at tag
-`v0.2.13`, run the self-test, ask which language to use, collect sources (Hyperliquid
+`v0.2.14`, run the self-test, ask which language to use, collect sources (Hyperliquid
 addresses; Robinhood via the official connector, whose namespace it discovers),
 sync, fetch daily candles for the SMA trend tags (`lsl candles fetch`), compute one combined report (with a per-account breakdown when there are
 several accounts; single-account reports on request), render the share cards
@@ -62,7 +62,7 @@ python3 bin/lsl hl tokens --unit                           # public spotMeta loo
 `compute` writes `summary.json`, `series.json`, `open_positions.json`,
 `data_quality.json` and `page.json` to `DATA/out/<scope-slug>/` (`--out DIR`
 overrides). `card` writes the three story cards `share-card-{1-stats,2-facts,3-roast}.svg`
-(and with `--png` a 2x `.png` and `.zip` each, plus `share-cards.zip`) next to them. With no source at all, `compute` returns an error asking for one.
+(and with `--png` a 2x `.png` each) next to them. With no source at all, `compute` returns an error asking for one.
 `page --compact` rewrites `page.json` small enough to paste into one Page write:
 same numbers, shorter lists (share cards for the default period only, top asset groups, 24-point
 sparklines, first 12 Robinhood positions); see `lsl/page.py` `compact()`.
@@ -141,10 +141,9 @@ numbers bigger, nothing below about 26px, and a layout check
   Chinese) and "1/3", "2/3", "3/3".
 
 Files: `share-card-1-stats.svg`, `share-card-2-facts.svg`,
-`share-card-3-roast.svg`; with `--png` each also gets a `.png` and a one-PNG
-stored `.zip`, and `share-cards.zip` holds the three PNGs in order (stored,
-byte-stable). The JSON result lists them in `cards_set`; `zip` is
-`share-cards.zip`.
+`share-card-3-roast.svg`; with `--png` each also gets a 2160x3840 `.png`. The
+JSON result lists them in order in `cards_set`. Stale files from older versions
+(the single `share-card.*` and any leftover `.zip`) are removed on each run.
 
 Persona, scores and grade are all-time for the card's scope; the stats, badge,
 strip and sparkline follow `--period`. The persona paragraph, verdict, rules and
@@ -161,13 +160,13 @@ install hint and the SVGs are still written. The Page shows the three cards side
 by side as images with a period toggle, but has no download buttons: it
 runs in a sandboxed frame with no download, blob or clipboard support. The chat
 attachments are the download path; the bot always attaches the combined set
-after the report (the three PNGs in order, then `share-cards.zip`, which holds
-the sharp originals; installing a rasterizer first if needed) and any other set
-on request.
+after the report (only the three PNGs in order, 1/3, 2/3, 3/3, as chat images;
+they are full resolution and can be downloaded from the chat preview;
+installing a rasterizer first if needed) and any other set on request.
 
 With several accounts the combined card adds "N accounts" to its scope line.
 `--per-account` (scope `all`) also writes `cards/<account-slug>-{1-stats,2-facts,3-roast}.svg`
-(+ `.png`, `.zip`) and `cards/<account-slug>-share-cards.zip` for every account, from that account's own profile, persona, liquidations and
+(+ `.png`) for every account, from that account's own profile, persona, liquidations and
 equity curve (template copy); it honors `--period`, and an account with too
 little data for the period is listed as `skipped` with its `available_periods`.
 The Page previews the same cards through its account picker; the PNGs come in

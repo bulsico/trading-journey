@@ -3,10 +3,10 @@
 
     lsl card [--out DIR | --data-dir DATA --scope S] [--period all|90d|30d|7d] [--lang en|zh]
              [--png] [--per-account] [--copy copy.json] [--percent-only (no-op, kept for old callers)]
-        -> DIR/share-card-1-stats.svg, share-card-2-facts.svg, share-card-3-roast.svg (+ .png and a
-           one-PNG stored .zip each) and DIR/share-cards.zip (all PNGs, stored, fixed timestamps);
+        -> DIR/share-card-1-stats.svg, share-card-2-facts.svg, share-card-3-roast.svg (+ .png each);
            with --per-account (several accounts) the same per account in DIR/cards/<slug>-1-stats.svg
-           ... and DIR/cards/<slug>-share-cards.zip, from the same compute output.
+           ..., from the same compute output.  Stale files from older versions (the single
+           share-card.*, any leftover .zip) are removed on each run.
 
 No dollar amounts, ever: the cards show only percentages, ratios, counts, days and asset names.
   1/3 stats:  header (brand, scope, date range, period), badge + tagline, return on volume (big)
@@ -1143,25 +1143,6 @@ INSTALL_HINT = ("no SVG rasterizer found; the PNGs attached in chat are the user
                 "and rerun with --png: `sudo apt-get install -y librsvg2-bin` (rsvg-convert), `brew install librsvg`, "
                 "or `python3 -m venv ~/.lsl-venv && ~/.lsl-venv/bin/pip install cairosvg` with ~/.lsl-venv/bin on PATH; "
                 "attach the SVGs only as a last resort")
-ZIP_TIME = (2020, 1, 1, 0, 0, 0)  # fixed member time: zips are byte-stable
-
-
-def _zip_files(zp, paths):
-    """A stored (uncompressed) zip of `paths` (by basename, in order); chat clients recompress
-    inline images, so the zip is the full-resolution download."""
-    import zipfile
-    with zipfile.ZipFile(zp, "w", zipfile.ZIP_STORED) as z:
-        for pp in paths:
-            zi = zipfile.ZipInfo(os.path.basename(pp), date_time=ZIP_TIME)
-            zi.external_attr = 0o644 << 16
-            with open(pp, "rb") as f:
-                z.writestr(zi, f.read())
-    return os.path.abspath(zp)
-
-
-def _zip_png(pp):
-    """One PNG in a stored zip next to it (<name>.zip)."""
-    return _zip_files(pp[:-4] + ".zip", [pp])
 
 
 def _write(path, s, png, res):
@@ -1173,7 +1154,7 @@ def _write(path, s, png, res):
         pp = path[:-4] + ".png"
         tool = to_png(path, pp)
         if tool:
-            res.update({"png": os.path.abspath(pp), "rasterizer": tool, "zip": _zip_png(pp)})
+            res.update({"png": os.path.abspath(pp), "rasterizer": tool})
         else:
             res.update({"png": None, "hint": INSTALL_HINT})
     return res
@@ -1182,10 +1163,17 @@ def _write(path, s, png, res):
 OLD_SINGLE = (".svg", ".png", ".zip")   # the pre-v0.2.13 single tall card, removed so it is never attached by mistake
 
 
-def _write_set(dir_, prefix, cards, png, res, zip_name):
-    """Write one card set: <dir>/<prefix><card id minus 'share-card'>.svg (+ .png, .zip) and a
-    combined stored zip <dir>/<zip_name> of all PNGs in story order.  Fills res["cards_set"],
-    res["zip"] (the combined zip) and, for old callers, res["svg"] / res["png"] (first card)."""
+def _clean_zips(dir_):
+    """Remove leftover .zip downloads written by v0.2.13 and older."""
+    if os.path.isdir(dir_):
+        for n in os.listdir(dir_):
+            if n.endswith(".zip"):
+                os.remove(os.path.join(dir_, n))
+
+
+def _write_set(dir_, prefix, cards, png, res):
+    """Write one card set: <dir>/<prefix><card id minus 'share-card'>.svg (+ .png) in story order.
+    Fills res["cards_set"] and, for old callers, res["svg"] / res["png"] (first card)."""
     out = []
     for cid, s in cards:
         r = {"id": cid}
@@ -1197,21 +1185,21 @@ def _write_set(dir_, prefix, cards, png, res, zip_name):
     if png:
         pngs = [r.get("png") for r in out]
         if all(pngs):
-            res.update({"png": pngs[0], "rasterizer": out[0]["rasterizer"],
-                        "zip": _zip_files(os.path.join(dir_, zip_name), pngs)})
+            res.update({"png": pngs[0], "rasterizer": out[0]["rasterizer"]})
         else:
             res.update({"png": None, "hint": INSTALL_HINT})
     return res
 
 
 def per_account(sm, se, out_dir, period="all", png=False, lang="en"):
-    """One card set per account into out_dir/cards/<slug>-1-stats.svg ... (+ .png, .zip) and
-    out_dir/cards/<slug>-share-cards.zip, in By-account row order.  An account without enough
+    """One card set per account into out_dir/cards/<slug>-1-stats.svg ... (+ .png), in
+    By-account row order.  An account without enough
     history for `period` is listed with its available periods."""
     out = []
     rows = account_rows(sm)
     if rows:
         os.makedirs(os.path.join(out_dir, "cards"), exist_ok=True)
+        _clean_zips(os.path.join(out_dir, "cards"))
     for r in rows:
         avail = available(sm, r["key"])
         res = {"account": r["key"], "label": (r.get("labels") or {}).get(lang) or r["label"], "slug": r["slug"],
@@ -1224,8 +1212,7 @@ def per_account(sm, se, out_dir, period="all", png=False, lang="en"):
                 old = os.path.join(cdir, r["slug"] + ext)
                 if os.path.exists(old):
                     os.remove(old)
-            _write_set(cdir, r["slug"], svgs(data(sm, se, period, r["key"]), lang), png, res,
-                       r["slug"] + "-share-cards.zip")
+            _write_set(cdir, r["slug"], svgs(data(sm, se, period, r["key"]), lang), png, res)
         out.append(res)
     return out
 
@@ -1252,7 +1239,8 @@ def run(out_dir, period="all", percent_only=False, png=False, lang="en", per_acc
         old = os.path.join(out_dir, "share-card" + ext)
         if os.path.exists(old):
             os.remove(old)
-    _write_set(out_dir, "share-card", svgs(data(sm, se, period), lang, copy=copy), png, res, "share-cards.zip")
+    _clean_zips(out_dir)
+    _write_set(out_dir, "share-card", svgs(data(sm, se, period), lang, copy=copy), png, res)
     if per_account_cards:
         res["cards"] = per_account(sm, se, out_dir, period, png, lang)
     return res

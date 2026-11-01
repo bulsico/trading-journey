@@ -229,7 +229,7 @@
     "hl_spot": "Hyperliquid spot",
     "rh_positions": "Robinhood",
     "card_note": "Card follows the report scope. Percentages and counts only, never dollar amounts.",
-    "card_save": "The three story cards are attached in the chat as PNGs, plus share-cards.zip with the full-resolution originals. Where your browser allows it, right-click or long-press a card and choose Save Image.",
+    "card_save": "The three story cards are attached in the chat as full-resolution PNGs; download them from the chat preview.",
     "summary_fmt": "{scope} · {period} ({days} days) · data as of {as_of}. Every figure comes from trading-journey's deterministic outputs.",
     "since_fmt": "Since {label}",
     "best_months": "Best months",

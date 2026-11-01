@@ -38,7 +38,7 @@ class TemplateTest(unittest.TestCase):
             for k in ("download_png", "download_svg", "download_blocked"):
                 self.assertNotIn(k, en[sec])
         self.assertIn("chat", en["ui"]["card_save"])
-        self.assertIn("Save Image", en["ui"]["card_save"])
+        self.assertNotIn("zip", en["ui"]["card_save"] + zh["ui"]["card_save"])
         self.assertIn("聊天", zh["ui"]["card_save"])
         self.assertIn("chat", en["accounts"]["card_in_picker"])
         self.assertIn("聊天", zh["accounts"]["card_in_picker"])
